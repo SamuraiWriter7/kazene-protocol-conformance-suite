@@ -1,0 +1,57 @@
+schema_version: "0.3.0"
+case_id: case:authorization-execution:after-expiry
+case_type: authorization_execution_scope
+title: Execution begins after authorization expiry
+description: The execution matches the content scope but starts after the validity window has closed.
+expected_outcome: nonconformant
+
+authorization_records:
+  - authorization_id: kazene:authorization:weather-read-001
+    decision: authorized
+    trace_ref: kazene:trace:weather-read-request-001
+    decided_at: "2026-07-24T03:00:00Z"
+
+    authorized_scope:
+      action: action://weather/read
+      actors:
+        - agent://weather/reader-001
+      tools:
+        - tool://weather/api
+      resources:
+        - weather://tokyo/current
+
+      cost_limit:
+        amount: 1.00
+        currency: USD
+
+      valid_from: "2026-07-24T03:00:00Z"
+      valid_until: "2026-07-24T03:05:00Z"
+
+execution_records:
+  - execution_id: kazene:execution:weather-read-001
+    authorization_ref: kazene:authorization:weather-read-001
+    execution_status: succeeded
+    started_at: "2026-07-24T03:06:00Z"
+    completed_at: "2026-07-24T03:06:01Z"
+
+    observed_action:
+      action: action://weather/read
+      actor: agent://weather/reader-001
+      tool: tool://weather/api
+      resource: weather://tokyo/current
+
+      cost:
+        amount: 0.05
+        currency: USD
+
+policy:
+  require_unique_authorization_ids: true
+  require_unique_execution_ids: true
+  require_registered_authorization: true
+  require_authorized_decision: true
+  require_action_match: true
+  require_actor_scope: true
+  require_tool_scope: true
+  require_resource_scope: true
+  require_cost_scope: true
+  require_time_scope: true
