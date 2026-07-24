@@ -1,0 +1,62 @@
+schema_version: "0.3.0"
+case_id: case:authorization-execution:matched-basic
+case_type: authorization_execution_scope
+title: Execution remains within the complete authorization scope
+description: The action, actor, tool, resource, cost, and execution time all match the authorization receipt.
+expected_outcome: conformant
+
+authorization_records:
+  - authorization_id: kazene:authorization:transfer-001
+    decision: authorized
+    trace_ref: kazene:trace:transfer-request-001
+    authority_ref: authority://human/operator-001
+    decided_at: "2026-07-24T02:00:00Z"
+
+    authorized_scope:
+      action: action://payment/transfer
+      actors:
+        - agent://treasury/worker-001
+      tools:
+        - tool://banking/transfer-api
+      resources:
+        - account://operating/001
+
+      cost_limit:
+        amount: 2.50
+        currency: USD
+
+      valid_from: "2026-07-24T02:00:00Z"
+      valid_until: "2026-07-24T02:05:00Z"
+
+execution_records:
+  - execution_id: kazene:execution:transfer-001
+    authorization_ref: kazene:authorization:transfer-001
+    execution_status: succeeded
+    started_at: "2026-07-24T02:01:00Z"
+    completed_at: "2026-07-24T02:01:05Z"
+    outcome_ref: transaction://transfer/001
+
+    observed_action:
+      action: action://payment/transfer
+      actor: agent://treasury/worker-001
+      tool: tool://banking/transfer-api
+      resource: account://operating/001
+
+      cost:
+        amount: 1.80
+        currency: USD
+
+policy:
+  require_unique_authorization_ids: true
+  require_unique_execution_ids: true
+  require_registered_authorization: true
+  require_authorized_decision: true
+  require_action_match: true
+  require_actor_scope: true
+  require_tool_scope: true
+  require_resource_scope: true
+  require_cost_scope: true
+  require_time_scope: true
+
+metadata:
+  scenario: complete-scope-pass
