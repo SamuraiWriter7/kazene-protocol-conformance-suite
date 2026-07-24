@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kazene.org/schemas/trace-authorization-conformance-case.schema.json",
+  "title": "Trace–Authorization Conformance Case",
+  "description": "A self-contained cross-protocol test case for validating Trace propagation into Authorization receipts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "case_type",
+    "expected_outcome",
+    "trace_records",
+    "authorization_records",
+    "policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.2.0"
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^case:[a-z0-9][a-z0-9._:-]{2,127}$"
+    },
+    "case_type": {
+      "const": "trace_authorization_binding"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "expected_outcome": {
+      "type": "string",
+      "enum": [
+        "conformant",
+        "nonconformant"
+      ]
+    },
+    "trace_records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/trace_record"
+      }
+    },
+    "authorization_records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/authorization_record"
+      }
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "integer",
+          "boolean",
+          "null"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "trace_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trace_id",
+        "event_type",
+        "recorded_at"
+      ],
+      "properties": {
+        "trace_id": {
+          "type": "string",
+          "pattern": "^kazene:trace:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "ingestion",
+            "transformation",
+            "derivation",
+            "handoff",
+            "observation",
+            "action_request"
+          ]
+        },
+        "recorded_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "payload_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "authorization_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization_id",
+        "decision",
+        "request_trace_ref",
+        "receipt_trace_ref",
+        "action_ref",
+        "decided_at"
+      ],
+      "properties": {
+        "authorization_id": {
+          "type": "string",
+          "pattern": "^kazene:authorization:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "authorized",
+            "denied",
+            "human_review_required"
+          ]
+        },
+        "request_trace_ref": {
+          "type": "string",
+          "pattern": "^kazene:trace:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "receipt_trace_ref": {
+          "type": "string",
+          "pattern": "^kazene:trace:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "action_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "decided_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "authority_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "require_unique_trace_ids",
+        "require_unique_authorization_ids",
+        "require_registered_trace",
+        "require_preserved_trace_binding"
+      ],
+      "properties": {
+        "require_unique_trace_ids": {
+          "type": "boolean"
+        },
+        "require_unique_authorization_ids": {
+          "type": "boolean"
+        },
+        "require_registered_trace": {
+          "type": "boolean"
+        },
+        "require_preserved_trace_binding": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
