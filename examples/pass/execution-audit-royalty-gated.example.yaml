@@ -1,0 +1,49 @@
+schema_version: "0.4.0"
+case_id: case:execution-audit-royalty:gated-basic
+case_type: execution_audit_royalty_gate
+title: Royalty begins after a passed Audit
+description: The Audit evaluates the completed Execution, passes it, and Royalty begins afterward.
+expected_outcome: conformant
+
+execution_records:
+  - execution_id: kazene:execution:content-generation-001
+    authorization_ref: kazene:authorization:content-generation-001
+    execution_status: succeeded
+    completed_at: "2026-07-24T04:00:00Z"
+    outcome_ref: artifact://content/generated-001
+
+audit_records:
+  - audit_id: kazene:audit:content-generation-001
+    request_execution_ref: kazene:execution:content-generation-001
+    report_execution_ref: kazene:execution:content-generation-001
+    verdict: passed
+    started_at: "2026-07-24T04:00:01Z"
+    completed_at: "2026-07-24T04:00:05Z"
+    auditor_ref: auditor://policy/core-001
+    evidence_refs:
+      - evidence://execution/content-generation-001
+
+royalty_records:
+  - royalty_id: kazene:royalty:content-generation-001
+    execution_ref: kazene:execution:content-generation-001
+    audit_ref: kazene:audit:content-generation-001
+    royalty_status: eligible
+    initiated_at: "2026-07-24T04:00:06Z"
+    beneficiary_refs:
+      - beneficiary://originator/001
+
+policy:
+  require_unique_execution_ids: true
+  require_unique_audit_ids: true
+  require_unique_royalty_ids: true
+  require_registered_execution_for_audit: true
+  require_preserved_execution_binding: true
+  require_audit_after_execution: true
+  require_registered_execution_for_royalty: true
+  require_registered_audit_for_royalty: true
+  require_royalty_execution_match: true
+  require_passed_audit_before_royalty: true
+  require_royalty_after_audit: true
+
+metadata:
+  scenario: complete-audit-gate-pass
