@@ -1,0 +1,60 @@
+schema_version: "0.4.0"
+suite_id: kazene:conformance-suite:core-execution-audit-royalty
+suite_name: Kazene Core Execution–Audit–Royalty Gate Conformance Suite
+suite_version: "0.4.0"
+profile_ref: civilization-os-interoperability-profile@0.5.0
+
+stage_pair:
+  source_stage: execution
+  target_stage: royalty
+
+gate_stage: audit
+
+checks:
+  - check_id: execution_id_unique
+    description: Every supplied Execution record MUST expose a unique canonical Execution ID.
+    severity: error
+
+  - check_id: audit_id_unique
+    description: Every Audit record MUST expose a unique canonical Audit ID.
+    severity: error
+
+  - check_id: royalty_id_unique
+    description: Every Royalty record MUST expose a unique canonical Royalty ID.
+    severity: error
+
+  - check_id: audit_execution_reference_exists
+    description: Every Audit execution reference MUST resolve to a supplied Execution record.
+    severity: error
+
+  - check_id: audit_execution_binding_preserved
+    description: The Execution submitted for Audit MUST be the same Execution recorded in the Audit report.
+    severity: error
+
+  - check_id: audit_occurs_after_execution
+    description: Audit MUST begin after the referenced Execution has completed and MUST have valid chronology.
+    severity: error
+
+  - check_id: royalty_execution_reference_exists
+    description: Every Royalty execution reference MUST resolve to a supplied Execution record.
+    severity: error
+
+  - check_id: royalty_audit_reference_exists
+    description: Every Royalty audit reference MUST resolve to a supplied Audit record.
+    severity: error
+
+  - check_id: royalty_execution_matches_audit
+    description: Royalty MUST reference the same Execution that was evaluated by the referenced Audit.
+    severity: error
+
+  - check_id: audit_verdict_allows_royalty
+    description: Royalty MUST NOT proceed unless the referenced Audit verdict is passed.
+    severity: error
+
+  - check_id: royalty_occurs_after_audit
+    description: Royalty processing MUST begin only after the referenced Audit has completed.
+    severity: error
+
+planned_checks:
+  - dispute_hold_before_settlement
+  - settlement_finality_after_dispute_resolution
