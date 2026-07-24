@@ -1,0 +1,55 @@
+schema_version: "0.3.0"
+suite_id: kazene:conformance-suite:core-authorization-execution
+suite_name: Kazene Core Authorization–Execution Conformance Suite
+suite_version: "0.3.0"
+profile_ref: civilization-os-interoperability-profile@0.5.0
+
+stage_pair:
+  source_stage: authorization
+  target_stage: execution
+
+checks:
+  - check_id: authorization_id_unique
+    description: Every supplied Authorization record MUST expose a unique canonical Authorization ID.
+    severity: error
+
+  - check_id: execution_id_unique
+    description: Every Execution record MUST expose a unique canonical Execution ID.
+    severity: error
+
+  - check_id: execution_authorization_reference_exists
+    description: Every Execution authorization reference MUST resolve to a supplied Authorization record.
+    severity: error
+
+  - check_id: execution_authorization_decision_allows
+    description: Execution MUST NOT proceed unless the referenced Authorization decision is authorized.
+    severity: error
+
+  - check_id: execution_action_matches_scope
+    description: The executed action MUST exactly match the action authorized by the receipt.
+    severity: error
+
+  - check_id: execution_actor_within_scope
+    description: The executing actor MUST be included in the authorized actor set.
+    severity: error
+
+  - check_id: execution_tool_within_scope
+    description: The executing tool MUST be included in the authorized tool set.
+    severity: error
+
+  - check_id: execution_resource_within_scope
+    description: The accessed resource MUST be included in the authorized resource set.
+    severity: error
+
+  - check_id: execution_cost_within_scope
+    description: Execution cost and currency MUST remain within the authorized cost limit.
+    severity: error
+
+  - check_id: execution_time_within_scope
+    description: Execution MUST begin and complete within the authorization validity window.
+    severity: error
+
+planned_checks:
+  - execution_audit_reference_exists
+  - audit_gate_before_royalty
+  - dispute_hold_before_settlement
