@@ -1,0 +1,57 @@
+schema_version: "0.3.0"
+case_id: case:authorization-execution:denied-authorization
+case_type: authorization_execution_scope
+title: Execution proceeds despite a denied authorization
+description: The referenced Authorization exists but explicitly denies the requested action.
+expected_outcome: nonconformant
+
+authorization_records:
+  - authorization_id: kazene:authorization:delete-001
+    decision: denied
+    trace_ref: kazene:trace:delete-request-001
+    decided_at: "2026-07-24T02:10:00Z"
+
+    authorized_scope:
+      action: action://filesystem/delete
+      actors:
+        - agent://maintenance/worker-001
+      tools:
+        - tool://filesystem/delete-api
+      resources:
+        - file://records/archive-001
+
+      cost_limit:
+        amount: 1.00
+        currency: USD
+
+      valid_from: "2026-07-24T02:10:00Z"
+      valid_until: "2026-07-24T02:15:00Z"
+
+execution_records:
+  - execution_id: kazene:execution:delete-001
+    authorization_ref: kazene:authorization:delete-001
+    execution_status: succeeded
+    started_at: "2026-07-24T02:11:00Z"
+    completed_at: "2026-07-24T02:11:01Z"
+
+    observed_action:
+      action: action://filesystem/delete
+      actor: agent://maintenance/worker-001
+      tool: tool://filesystem/delete-api
+      resource: file://records/archive-001
+
+      cost:
+        amount: 0.20
+        currency: USD
+
+policy:
+  require_unique_authorization_ids: true
+  require_unique_execution_ids: true
+  require_registered_authorization: true
+  require_authorized_decision: true
+  require_action_match: true
+  require_actor_scope: true
+  require_tool_scope: true
+  require_resource_scope: true
+  require_cost_scope: true
+  require_time_scope: true
