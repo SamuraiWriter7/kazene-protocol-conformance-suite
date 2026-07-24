@@ -1,0 +1,57 @@
+schema_version: "0.3.0"
+case_id: case:authorization-execution:cost-resource-exceeded
+case_type: authorization_execution_scope
+title: Execution accesses another resource and exceeds the cost limit
+description: The execution uses a resource outside the authorized set and consumes more than the approved amount.
+expected_outcome: nonconformant
+
+authorization_records:
+  - authorization_id: kazene:authorization:model-run-001
+    decision: authorized
+    trace_ref: kazene:trace:model-run-request-001
+    decided_at: "2026-07-24T02:40:00Z"
+
+    authorized_scope:
+      action: action://model/inference
+      actors:
+        - agent://analysis/worker-001
+      tools:
+        - tool://model/inference-api
+      resources:
+        - model://local/small-001
+
+      cost_limit:
+        amount: 5.00
+        currency: USD
+
+      valid_from: "2026-07-24T02:40:00Z"
+      valid_until: "2026-07-24T02:50:00Z"
+
+execution_records:
+  - execution_id: kazene:execution:model-run-001
+    authorization_ref: kazene:authorization:model-run-001
+    execution_status: succeeded
+    started_at: "2026-07-24T02:41:00Z"
+    completed_at: "2026-07-24T02:42:00Z"
+
+    observed_action:
+      action: action://model/inference
+      actor: agent://analysis/worker-001
+      tool: tool://model/inference-api
+      resource: model://external/large-999
+
+      cost:
+        amount: 18.50
+        currency: USD
+
+policy:
+  require_unique_authorization_ids: true
+  require_unique_execution_ids: true
+  require_registered_authorization: true
+  require_authorized_decision: true
+  require_action_match: true
+  require_actor_scope: true
+  require_tool_scope: true
+  require_resource_scope: true
+  require_cost_scope: true
+  require_time_scope: true
