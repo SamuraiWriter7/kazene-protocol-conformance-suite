@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kazene.org/schemas/conformance-suite-manifest.schema.json",
+  "title": "Kazene Protocol Conformance Suite Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "suite_id",
+    "suite_name",
+    "suite_version",
+    "profile_ref",
+    "stage_pair",
+    "checks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "suite_id": {
+      "type": "string",
+      "pattern": "^kazene:conformance-suite:[a-z0-9][a-z0-9._-]{2,127}$"
+    },
+    "suite_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "suite_version": {
+      "const": "0.1.0"
+    },
+    "profile_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "stage_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_stage",
+        "target_stage"
+      ],
+      "properties": {
+        "source_stage": {
+          "const": "origin"
+        },
+        "target_stage": {
+          "const": "trace"
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "check_id",
+          "description",
+          "severity"
+        ],
+        "properties": {
+          "check_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{2,127}$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ]
+          }
+        }
+      }
+    },
+    "planned_checks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{2,127}$"
+      }
+    }
+  }
+}
