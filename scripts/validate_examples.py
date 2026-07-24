@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Kazene cross-protocol conformance examples through v0.3."""
+"""Validate Kazene cross-protocol conformance examples through v0.4."""
 
 from __future__ import annotations
 
@@ -100,37 +100,49 @@ def schema_errors(
     ]
 
 
-def passed(
+def result(
     check_id: str,
+    status: str,
     message: str,
 ) -> dict[str, str]:
     return {
         "check_id": check_id,
-        "status": "passed",
+        "status": status,
         "message": message,
     }
+
+
+def passed(
+    check_id: str,
+    message: str,
+) -> dict[str, str]:
+    return result(
+        check_id,
+        "passed",
+        message,
+    )
 
 
 def failed(
     check_id: str,
     message: str,
 ) -> dict[str, str]:
-    return {
-        "check_id": check_id,
-        "status": "failed",
-        "message": message,
-    }
+    return result(
+        check_id,
+        "failed",
+        message,
+    )
 
 
 def skipped(
     check_id: str,
     message: str,
 ) -> dict[str, str]:
-    return {
-        "check_id": check_id,
-        "status": "skipped",
-        "message": message,
-    }
+    return result(
+        check_id,
+        "skipped",
+        message,
+    )
 
 
 def duplicate_values(
@@ -148,7 +160,42 @@ def parse_datetime(
     value: str,
 ) -> datetime:
     return datetime.fromisoformat(
-        value.replace("Z", "+00:00")
+        value.replace(
+            "Z",
+            "+00:00",
+        )
+    )
+
+
+def unique_check(
+    enabled: bool,
+    values: list[str],
+    check_id: str,
+    label: str,
+) -> dict[str, str]:
+    if not enabled:
+        return skipped(
+            check_id,
+            (
+                f"{label} uniqueness check "
+                "is disabled by policy."
+            ),
+        )
+
+    duplicates = duplicate_values(values)
+
+    if duplicates:
+        return failed(
+            check_id,
+            (
+                f"Duplicate {label} IDs: "
+                + ", ".join(duplicates)
+            ),
+        )
+
+    return passed(
+        check_id,
+        f"All {label} IDs are unique.",
     )
 
 
@@ -159,82 +206,12 @@ def check_origin_trace(
     traces = case["trace_records"]
     policy = case["policy"]
 
-    origin_ids = [
-        record["origin_id"]
-        for record in origins
-    ]
-
-    trace_ids = [
-        record["trace_id"]
-        for record in traces
-    ]
-
     origin_index = {
         record["origin_id"]: record
         for record in origins
     }
 
-    results: list[dict[str, str]] = []
-
-    if policy["require_unique_origin_ids"]:
-        duplicates = duplicate_values(
-            origin_ids
-        )
-
-        if duplicates:
-            results.append(
-                failed(
-                    "origin_id_unique",
-                    "Duplicate Origin IDs: "
-                    + ", ".join(duplicates),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "origin_id_unique",
-                    "All Origin IDs are unique.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "origin_id_unique",
-                "Origin ID uniqueness check is "
-                "disabled by policy.",
-            )
-        )
-
-    if policy["require_unique_trace_ids"]:
-        duplicates = duplicate_values(
-            trace_ids
-        )
-
-        if duplicates:
-            results.append(
-                failed(
-                    "trace_id_unique",
-                    "Duplicate Trace IDs: "
-                    + ", ".join(duplicates),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "trace_id_unique",
-                    "All Trace IDs are unique.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "trace_id_unique",
-                "Trace ID uniqueness check is "
-                "disabled by policy.",
-            )
-        )
-
-    referenced_origin_ids = sorted(
+    referenced = sorted(
         {
             origin_ref
             for trace in traces
@@ -243,35 +220,63 @@ def check_origin_trace(
         }
     )
 
+    results = [
+        unique_check(
+            policy[
+                "require_unique_origin_ids"
+            ],
+            [
+                record["origin_id"]
+                for record in origins
+            ],
+            "origin_id_unique",
+            "Origin",
+        ),
+        unique_check(
+            policy[
+                "require_unique_trace_ids"
+            ],
+            [
+                record["trace_id"]
+                for record in traces
+            ],
+            "trace_id_unique",
+            "Trace",
+        ),
+    ]
+
     if policy["require_registered_origin"]:
         missing = [
             origin_id
-            for origin_id in referenced_origin_ids
+            for origin_id in referenced
             if origin_id not in origin_index
         ]
 
-        if missing:
-            results.append(
-                failed(
-                    "origin_trace_reference_exists",
+        results.append(
+            failed(
+                "origin_trace_reference_exists",
+                (
                     "Unresolved Origin references: "
-                    + ", ".join(missing),
-                )
+                    + ", ".join(missing)
+                ),
             )
-        else:
-            results.append(
-                passed(
-                    "origin_trace_reference_exists",
+            if missing
+            else passed(
+                "origin_trace_reference_exists",
+                (
                     "Every Trace Origin reference "
-                    "resolves to a registered Origin.",
-                )
+                    "resolves to a registered Origin."
+                ),
             )
+        )
     else:
         results.append(
             skipped(
                 "origin_trace_reference_exists",
-                "Registered Origin resolution check "
-                "is disabled by policy.",
+                (
+                    "Registered Origin resolution "
+                    "check is disabled by policy."
+                ),
             )
         )
 
@@ -281,36 +286,40 @@ def check_origin_trace(
                 f"{origin_id}"
                 f"({origin_index[origin_id]['status']})"
             )
-            for origin_id in referenced_origin_ids
+            for origin_id in referenced
             if (
                 origin_id in origin_index
-                and origin_index[origin_id]["status"]
-                != "active"
+                and origin_index[
+                    origin_id
+                ]["status"] != "active"
             )
         ]
 
-        if inactive:
-            results.append(
-                failed(
-                    "origin_status_active",
+        results.append(
+            failed(
+                "origin_status_active",
+                (
                     "Inactive Origin references: "
-                    + ", ".join(inactive),
-                )
+                    + ", ".join(inactive)
+                ),
             )
-        else:
-            results.append(
-                passed(
-                    "origin_status_active",
+            if inactive
+            else passed(
+                "origin_status_active",
+                (
                     "Every resolved Origin reference "
-                    "is active.",
-                )
+                    "is active."
+                ),
             )
+        )
     else:
         results.append(
             skipped(
                 "origin_status_active",
-                "Active Origin status check is "
-                "disabled by policy.",
+                (
+                    "Active Origin status check "
+                    "is disabled by policy."
+                ),
             )
         )
 
@@ -326,93 +335,40 @@ def check_trace_authorization(
     ]
     policy = case["policy"]
 
-    trace_ids = [
-        record["trace_id"]
-        for record in traces
-    ]
-
-    authorization_ids = [
-        record["authorization_id"]
-        for record in authorizations
-    ]
-
     trace_index = {
         record["trace_id"]: record
         for record in traces
     }
 
-    results: list[dict[str, str]] = []
-
-    if policy["require_unique_trace_ids"]:
-        duplicates = duplicate_values(
-            trace_ids
-        )
-
-        if duplicates:
-            results.append(
-                failed(
-                    "trace_id_unique",
-                    "Duplicate Trace IDs: "
-                    + ", ".join(duplicates),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "trace_id_unique",
-                    "All supplied Trace IDs "
-                    "are unique.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "trace_id_unique",
-                "Trace ID uniqueness check is "
-                "disabled by policy.",
-            )
-        )
-
-    if policy[
-        "require_unique_authorization_ids"
-    ]:
-        duplicates = duplicate_values(
-            authorization_ids
-        )
-
-        if duplicates:
-            results.append(
-                failed(
-                    "authorization_id_unique",
-                    "Duplicate Authorization IDs: "
-                    + ", ".join(duplicates),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "authorization_id_unique",
-                    "All Authorization IDs "
-                    "are unique.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "authorization_id_unique",
-                "Authorization ID uniqueness check "
-                "is disabled by policy.",
-            )
-        )
+    results = [
+        unique_check(
+            policy[
+                "require_unique_trace_ids"
+            ],
+            [
+                record["trace_id"]
+                for record in traces
+            ],
+            "trace_id_unique",
+            "Trace",
+        ),
+        unique_check(
+            policy[
+                "require_unique_authorization_ids"
+            ],
+            [
+                record["authorization_id"]
+                for record in authorizations
+            ],
+            "authorization_id_unique",
+            "Authorization",
+        ),
+    ]
 
     if policy["require_registered_trace"]:
         unresolved: list[str] = []
 
         for record in authorizations:
-            authorization_id = record[
-                "authorization_id"
-            ]
-
             for field_name in (
                 "request_trace_ref",
                 "receipt_trace_ref",
@@ -421,36 +377,38 @@ def check_trace_authorization(
 
                 if trace_ref not in trace_index:
                     unresolved.append(
-                        f"{authorization_id}."
-                        f"{field_name}="
-                        f"{trace_ref}"
+                        f"{record['authorization_id']}."
+                        f"{field_name}={trace_ref}"
                     )
 
-        if unresolved:
-            results.append(
-                failed(
-                    "authorization_trace_reference_exists",
+        results.append(
+            failed(
+                "authorization_trace_reference_exists",
+                (
                     "Unresolved Trace references: "
                     + "; ".join(
                         sorted(unresolved)
-                    ),
-                )
+                    )
+                ),
             )
-        else:
-            results.append(
-                passed(
-                    "authorization_trace_reference_exists",
+            if unresolved
+            else passed(
+                "authorization_trace_reference_exists",
+                (
                     "Every Authorization Trace "
                     "reference resolves to a "
-                    "supplied Trace.",
-                )
+                    "supplied Trace."
+                ),
             )
+        )
     else:
         results.append(
             skipped(
                 "authorization_trace_reference_exists",
-                "Registered Trace resolution check "
-                "is disabled by policy.",
+                (
+                    "Registered Trace resolution "
+                    "check is disabled by policy."
+                ),
             )
         )
 
@@ -472,29 +430,32 @@ def check_trace_authorization(
             )
         ]
 
-        if substitutions:
-            results.append(
-                failed(
-                    "trace_binding_preserved",
+        results.append(
+            failed(
+                "trace_binding_preserved",
+                (
                     "Trace substitutions detected: "
-                    + "; ".join(substitutions),
-                )
+                    + "; ".join(substitutions)
+                ),
             )
-        else:
-            results.append(
-                passed(
-                    "trace_binding_preserved",
+            if substitutions
+            else passed(
+                "trace_binding_preserved",
+                (
                     "Every Authorization receipt "
                     "preserves the request Trace "
-                    "binding.",
-                )
+                    "binding."
+                ),
             )
+        )
     else:
         results.append(
             skipped(
                 "trace_binding_preserved",
-                "Trace binding preservation check "
-                "is disabled by policy.",
+                (
+                    "Trace binding preservation "
+                    "check is disabled by policy."
+                ),
             )
         )
 
@@ -507,86 +468,40 @@ def check_authorization_execution(
     authorizations = case[
         "authorization_records"
     ]
-    executions = case["execution_records"]
+    executions = case[
+        "execution_records"
+    ]
     policy = case["policy"]
-
-    authorization_ids = [
-        record["authorization_id"]
-        for record in authorizations
-    ]
-
-    execution_ids = [
-        record["execution_id"]
-        for record in executions
-    ]
 
     authorization_index = {
         record["authorization_id"]: record
         for record in authorizations
     }
 
-    results: list[dict[str, str]] = []
-
-    if policy[
-        "require_unique_authorization_ids"
-    ]:
-        duplicates = duplicate_values(
-            authorization_ids
-        )
-
-        if duplicates:
-            results.append(
-                failed(
-                    "authorization_id_unique",
-                    "Duplicate Authorization IDs: "
-                    + ", ".join(duplicates),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "authorization_id_unique",
-                    "All supplied Authorization IDs "
-                    "are unique.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "authorization_id_unique",
-                "Authorization ID uniqueness check "
-                "is disabled by policy.",
-            )
-        )
-
-    if policy["require_unique_execution_ids"]:
-        duplicates = duplicate_values(
-            execution_ids
-        )
-
-        if duplicates:
-            results.append(
-                failed(
-                    "execution_id_unique",
-                    "Duplicate Execution IDs: "
-                    + ", ".join(duplicates),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "execution_id_unique",
-                    "All Execution IDs are unique.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "execution_id_unique",
-                "Execution ID uniqueness check is "
-                "disabled by policy.",
-            )
-        )
+    results = [
+        unique_check(
+            policy[
+                "require_unique_authorization_ids"
+            ],
+            [
+                record["authorization_id"]
+                for record in authorizations
+            ],
+            "authorization_id_unique",
+            "Authorization",
+        ),
+        unique_check(
+            policy[
+                "require_unique_execution_ids"
+            ],
+            [
+                record["execution_id"]
+                for record in executions
+            ],
+            "execution_id_unique",
+            "Execution",
+        ),
+    ]
 
     if policy[
         "require_registered_authorization"
@@ -603,436 +518,837 @@ def check_authorization_execution(
             )
         ]
 
-        if unresolved:
-            results.append(
-                failed(
-                    "execution_authorization_reference_exists",
+        results.append(
+            failed(
+                "execution_authorization_reference_exists",
+                (
                     "Unresolved Authorization "
                     "references: "
-                    + "; ".join(unresolved),
-                )
+                    + "; ".join(unresolved)
+                ),
             )
-        else:
-            results.append(
-                passed(
-                    "execution_authorization_reference_exists",
+            if unresolved
+            else passed(
+                "execution_authorization_reference_exists",
+                (
                     "Every Execution authorization "
-                    "reference resolves.",
-                )
+                    "reference resolves."
+                ),
             )
+        )
     else:
         results.append(
             skipped(
                 "execution_authorization_reference_exists",
-                "Authorization resolution check is "
-                "disabled by policy.",
+                (
+                    "Authorization resolution check "
+                    "is disabled by policy."
+                ),
             )
         )
 
-    if policy["require_authorized_decision"]:
-        violations: list[str] = []
+    comparable = [
+        (
+            execution,
+            authorization_index.get(
+                execution[
+                    "authorization_ref"
+                ]
+            ),
+        )
+        for execution in executions
+    ]
 
-        for execution in executions:
-            authorization = authorization_index.get(
-                execution["authorization_ref"]
+    def scope_check(
+        enabled: bool,
+        check_id: str,
+        disabled_message: str,
+        violation_builder: Callable[
+            [
+                dict[str, Any],
+                dict[str, Any],
+            ],
+            str | None,
+        ],
+        success_message: str,
+        failure_prefix: str,
+    ) -> None:
+        if not enabled:
+            results.append(
+                skipped(
+                    check_id,
+                    disabled_message,
+                )
             )
+            return
 
-            if authorization is None:
-                continue
+        violations = [
+            violation
+            for execution, authorization
+            in comparable
+            if authorization is not None
+            for violation in [
+                violation_builder(
+                    execution,
+                    authorization,
+                )
+            ]
+            if violation is not None
+        ]
 
+        results.append(
+            failed(
+                check_id,
+                (
+                    failure_prefix
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                check_id,
+                success_message,
+            )
+        )
+
+    scope_check(
+        policy[
+            "require_authorized_decision"
+        ],
+        "execution_authorization_decision_allows",
+        (
+            "Authorization decision check "
+            "is disabled by policy."
+        ),
+        lambda execution, authorization: (
+            f"{execution['execution_id']}"
+            f"({authorization['decision']})"
             if (
                 authorization["decision"]
                 != "authorized"
-            ):
-                violations.append(
-                    f"{execution['execution_id']}"
-                    f"({authorization['decision']})"
-                )
-
-        if violations:
-            results.append(
-                failed(
-                    "execution_authorization_decision_allows",
-                    "Execution used non-authorized "
-                    "decisions: "
-                    + "; ".join(violations),
-                )
             )
-        else:
-            results.append(
-                passed(
-                    "execution_authorization_decision_allows",
-                    "Every Execution references an "
-                    "authorized decision.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "execution_authorization_decision_allows",
-                "Authorization decision check is "
-                "disabled by policy.",
-            )
-        )
+            else None
+        ),
+        (
+            "Every Execution references "
+            "an authorized decision."
+        ),
+        (
+            "Execution used non-authorized "
+            "decisions: "
+        ),
+    )
 
-    if policy["require_action_match"]:
-        violations: list[str] = []
-
-        for execution in executions:
-            authorization = authorization_index.get(
-                execution["authorization_ref"]
-            )
-
-            if authorization is None:
-                continue
-
-            expected = authorization[
-                "authorized_scope"
-            ]["action"]
-
-            actual = execution[
-                "observed_action"
-            ]["action"]
-
-            if actual != expected:
-                violations.append(
-                    f"{execution['execution_id']}"
-                    f"(authorized={expected}, "
-                    f"executed={actual})"
-                )
-
-        if violations:
-            results.append(
-                failed(
-                    "execution_action_matches_scope",
-                    "Action scope violations: "
-                    + "; ".join(violations),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "execution_action_matches_scope",
-                    "Every executed action matches "
-                    "its authorized action.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "execution_action_matches_scope",
-                "Action matching check is "
-                "disabled by policy.",
-            )
-        )
-
-    if policy["require_actor_scope"]:
-        violations: list[str] = []
-
-        for execution in executions:
-            authorization = authorization_index.get(
-                execution["authorization_ref"]
-            )
-
-            if authorization is None:
-                continue
-
-            actor = execution[
-                "observed_action"
-            ]["actor"]
-
-            allowed = authorization[
-                "authorized_scope"
-            ]["actors"]
-
-            if actor not in allowed:
-                violations.append(
-                    f"{execution['execution_id']}"
-                    f"({actor})"
-                )
-
-        if violations:
-            results.append(
-                failed(
-                    "execution_actor_within_scope",
-                    "Unauthorized execution actors: "
-                    + "; ".join(violations),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "execution_actor_within_scope",
-                    "Every execution actor is within "
-                    "the authorized actor set.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "execution_actor_within_scope",
-                "Actor scope check is disabled "
-                "by policy.",
-            )
-        )
-
-    if policy["require_tool_scope"]:
-        violations: list[str] = []
-
-        for execution in executions:
-            authorization = authorization_index.get(
-                execution["authorization_ref"]
-            )
-
-            if authorization is None:
-                continue
-
-            tool = execution[
-                "observed_action"
-            ]["tool"]
-
-            allowed = authorization[
-                "authorized_scope"
-            ]["tools"]
-
-            if tool not in allowed:
-                violations.append(
-                    f"{execution['execution_id']}"
-                    f"({tool})"
-                )
-
-        if violations:
-            results.append(
-                failed(
-                    "execution_tool_within_scope",
-                    "Unauthorized execution tools: "
-                    + "; ".join(violations),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "execution_tool_within_scope",
-                    "Every execution tool is within "
-                    "the authorized tool set.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "execution_tool_within_scope",
-                "Tool scope check is disabled "
-                "by policy.",
-            )
-        )
-
-    if policy["require_resource_scope"]:
-        violations: list[str] = []
-
-        for execution in executions:
-            authorization = authorization_index.get(
-                execution["authorization_ref"]
-            )
-
-            if authorization is None:
-                continue
-
-            resource = execution[
-                "observed_action"
-            ]["resource"]
-
-            allowed = authorization[
-                "authorized_scope"
-            ]["resources"]
-
-            if resource not in allowed:
-                violations.append(
-                    f"{execution['execution_id']}"
-                    f"({resource})"
-                )
-
-        if violations:
-            results.append(
-                failed(
-                    "execution_resource_within_scope",
-                    "Unauthorized resources: "
-                    + "; ".join(violations),
-                )
-            )
-        else:
-            results.append(
-                passed(
-                    "execution_resource_within_scope",
-                    "Every execution resource is "
-                    "within the authorized set.",
-                )
-            )
-    else:
-        results.append(
-            skipped(
-                "execution_resource_within_scope",
-                "Resource scope check is disabled "
-                "by policy.",
-            )
-        )
-
-    if policy["require_cost_scope"]:
-        violations: list[str] = []
-
-        for execution in executions:
-            authorization = authorization_index.get(
-                execution["authorization_ref"]
-            )
-
-            if authorization is None:
-                continue
-
-            observed_cost = execution[
-                "observed_action"
-            ]["cost"]
-
-            cost_limit = authorization[
-                "authorized_scope"
-            ]["cost_limit"]
-
-            currency_matches = (
-                observed_cost["currency"]
-                == cost_limit["currency"]
-            )
-
-            amount_within_limit = (
-                observed_cost["amount"]
-                <= cost_limit["amount"]
-            )
-
+    scope_check(
+        policy["require_action_match"],
+        "execution_action_matches_scope",
+        (
+            "Action matching check "
+            "is disabled by policy."
+        ),
+        lambda execution, authorization: (
+            f"{execution['execution_id']}"
+            f"(authorized="
+            f"{authorization['authorized_scope']['action']}, "
+            f"executed="
+            f"{execution['observed_action']['action']})"
             if (
-                not currency_matches
-                or not amount_within_limit
-            ):
-                violations.append(
-                    f"{execution['execution_id']}"
-                    f"(observed="
-                    f"{observed_cost['amount']} "
-                    f"{observed_cost['currency']}, "
-                    f"limit="
-                    f"{cost_limit['amount']} "
-                    f"{cost_limit['currency']})"
-                )
+                execution[
+                    "observed_action"
+                ]["action"]
+                != authorization[
+                    "authorized_scope"
+                ]["action"]
+            )
+            else None
+        ),
+        (
+            "Every executed action matches "
+            "its authorized action."
+        ),
+        "Action scope violations: ",
+    )
 
-        if violations:
-            results.append(
-                failed(
-                    "execution_cost_within_scope",
-                    "Execution cost violations: "
-                    + "; ".join(violations),
+    for (
+        policy_key,
+        check_id,
+        observed_key,
+        allowed_key,
+        label,
+    ) in (
+        (
+            "require_actor_scope",
+            "execution_actor_within_scope",
+            "actor",
+            "actors",
+            "execution actor",
+        ),
+        (
+            "require_tool_scope",
+            "execution_tool_within_scope",
+            "tool",
+            "tools",
+            "execution tool",
+        ),
+        (
+            "require_resource_scope",
+            "execution_resource_within_scope",
+            "resource",
+            "resources",
+            "execution resource",
+        ),
+    ):
+        scope_check(
+            policy[policy_key],
+            check_id,
+            (
+                f"{label.title()} scope check "
+                "is disabled by policy."
+            ),
+            lambda execution,
+            authorization,
+            observed_key=observed_key,
+            allowed_key=allowed_key: (
+                f"{execution['execution_id']}"
+                f"({execution['observed_action'][observed_key]})"
+                if (
+                    execution[
+                        "observed_action"
+                    ][observed_key]
+                    not in authorization[
+                        "authorized_scope"
+                    ][allowed_key]
                 )
+                else None
+            ),
+            (
+                f"Every {label} is within "
+                "the authorized set."
+            ),
+            f"Unauthorized {label}s: ",
+        )
+
+    scope_check(
+        policy["require_cost_scope"],
+        "execution_cost_within_scope",
+        (
+            "Cost scope check "
+            "is disabled by policy."
+        ),
+        lambda execution, authorization: (
+            f"{execution['execution_id']}"
+            f"(observed="
+            f"{execution['observed_action']['cost']['amount']} "
+            f"{execution['observed_action']['cost']['currency']}, "
+            f"limit="
+            f"{authorization['authorized_scope']['cost_limit']['amount']} "
+            f"{authorization['authorized_scope']['cost_limit']['currency']})"
+            if (
+                execution[
+                    "observed_action"
+                ]["cost"]["currency"]
+                != authorization[
+                    "authorized_scope"
+                ]["cost_limit"]["currency"]
+                or execution[
+                    "observed_action"
+                ]["cost"]["amount"]
+                > authorization[
+                    "authorized_scope"
+                ]["cost_limit"]["amount"]
             )
-        else:
-            results.append(
-                passed(
-                    "execution_cost_within_scope",
-                    "Every execution cost remains "
-                    "within its authorized limit.",
-                )
+            else None
+        ),
+        (
+            "Every execution cost remains "
+            "within its authorized limit."
+        ),
+        "Execution cost violations: ",
+    )
+
+    def time_violation(
+        execution: dict[str, Any],
+        authorization: dict[str, Any],
+    ) -> str | None:
+        scope = authorization[
+            "authorized_scope"
+        ]
+
+        valid_from = parse_datetime(
+            scope["valid_from"]
+        )
+
+        valid_until = parse_datetime(
+            scope["valid_until"]
+        )
+
+        started_at = parse_datetime(
+            execution["started_at"]
+        )
+
+        completed_at = parse_datetime(
+            execution["completed_at"]
+        )
+
+        reasons: list[str] = []
+
+        if valid_from > valid_until:
+            reasons.append(
+                "invalid-authorization-window"
             )
+
+        if started_at > completed_at:
+            reasons.append(
+                "invalid-execution-chronology"
+            )
+
+        if started_at < valid_from:
+            reasons.append(
+                "started-before-validity"
+            )
+
+        if completed_at > valid_until:
+            reasons.append(
+                "completed-after-expiry"
+            )
+
+        return (
+            f"{execution['execution_id']}"
+            f"({','.join(reasons)})"
+            if reasons
+            else None
+        )
+
+    scope_check(
+        policy["require_time_scope"],
+        "execution_time_within_scope",
+        (
+            "Time scope check "
+            "is disabled by policy."
+        ),
+        time_violation,
+        (
+            "Every execution begins and "
+            "completes within its authorized "
+            "time window."
+        ),
+        "Execution time violations: ",
+    )
+
+    return results
+
+
+def check_execution_audit_royalty(
+    case: dict[str, Any],
+) -> list[dict[str, str]]:
+    executions = case[
+        "execution_records"
+    ]
+    audits = case["audit_records"]
+    royalties = case["royalty_records"]
+    policy = case["policy"]
+
+    execution_index = {
+        record["execution_id"]: record
+        for record in executions
+    }
+
+    audit_index = {
+        record["audit_id"]: record
+        for record in audits
+    }
+
+    results = [
+        unique_check(
+            policy[
+                "require_unique_execution_ids"
+            ],
+            [
+                record["execution_id"]
+                for record in executions
+            ],
+            "execution_id_unique",
+            "Execution",
+        ),
+        unique_check(
+            policy[
+                "require_unique_audit_ids"
+            ],
+            [
+                record["audit_id"]
+                for record in audits
+            ],
+            "audit_id_unique",
+            "Audit",
+        ),
+        unique_check(
+            policy[
+                "require_unique_royalty_ids"
+            ],
+            [
+                record["royalty_id"]
+                for record in royalties
+            ],
+            "royalty_id_unique",
+            "Royalty",
+        ),
+    ]
+
+    if policy[
+        "require_registered_execution_for_audit"
+    ]:
+        unresolved: list[str] = []
+
+        for audit in audits:
+            for field_name in (
+                "request_execution_ref",
+                "report_execution_ref",
+            ):
+                execution_ref = audit[
+                    field_name
+                ]
+
+                if (
+                    execution_ref
+                    not in execution_index
+                ):
+                    unresolved.append(
+                        f"{audit['audit_id']}."
+                        f"{field_name}="
+                        f"{execution_ref}"
+                    )
+
+        results.append(
+            failed(
+                "audit_execution_reference_exists",
+                (
+                    "Unresolved Audit Execution "
+                    "references: "
+                    + "; ".join(
+                        sorted(unresolved)
+                    )
+                ),
+            )
+            if unresolved
+            else passed(
+                "audit_execution_reference_exists",
+                (
+                    "Every Audit Execution reference "
+                    "resolves to a supplied Execution."
+                ),
+            )
+        )
     else:
         results.append(
             skipped(
-                "execution_cost_within_scope",
-                "Cost scope check is disabled "
-                "by policy.",
+                "audit_execution_reference_exists",
+                (
+                    "Audit Execution resolution "
+                    "check is disabled by policy."
+                ),
             )
         )
 
-    if policy["require_time_scope"]:
+    if policy[
+        "require_preserved_execution_binding"
+    ]:
+        substitutions = [
+            (
+                f"{audit['audit_id']}"
+                f"(request="
+                f"{audit['request_execution_ref']}, "
+                f"report="
+                f"{audit['report_execution_ref']})"
+            )
+            for audit in audits
+            if (
+                audit[
+                    "request_execution_ref"
+                ]
+                != audit[
+                    "report_execution_ref"
+                ]
+            )
+        ]
+
+        results.append(
+            failed(
+                "audit_execution_binding_preserved",
+                (
+                    "Audit Execution substitutions "
+                    "detected: "
+                    + "; ".join(substitutions)
+                ),
+            )
+            if substitutions
+            else passed(
+                "audit_execution_binding_preserved",
+                (
+                    "Every Audit report preserves "
+                    "the submitted Execution binding."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "audit_execution_binding_preserved",
+                (
+                    "Audit Execution binding check "
+                    "is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_audit_after_execution"
+    ]:
         violations: list[str] = []
 
-        for execution in executions:
-            authorization = authorization_index.get(
-                execution["authorization_ref"]
+        for audit in audits:
+            execution = execution_index.get(
+                audit[
+                    "report_execution_ref"
+                ]
             )
 
-            if authorization is None:
+            if execution is None:
                 continue
 
-            scope = authorization[
-                "authorized_scope"
-            ]
-
-            valid_from = parse_datetime(
-                scope["valid_from"]
+            execution_completed = (
+                parse_datetime(
+                    execution["completed_at"]
+                )
             )
 
-            valid_until = parse_datetime(
-                scope["valid_until"]
+            audit_started = parse_datetime(
+                audit["started_at"]
             )
 
-            started_at = parse_datetime(
-                execution["started_at"]
-            )
-
-            completed_at = parse_datetime(
-                execution["completed_at"]
+            audit_completed = parse_datetime(
+                audit["completed_at"]
             )
 
             reasons: list[str] = []
 
-            if valid_from > valid_until:
+            if (
+                audit_started
+                < execution_completed
+            ):
                 reasons.append(
-                    "invalid-authorization-window"
+                    "audit-started-before-"
+                    "execution-completed"
                 )
 
-            if started_at > completed_at:
+            if audit_started > audit_completed:
                 reasons.append(
-                    "invalid-execution-chronology"
-                )
-
-            if started_at < valid_from:
-                reasons.append(
-                    "started-before-validity"
-                )
-
-            if completed_at > valid_until:
-                reasons.append(
-                    "completed-after-expiry"
+                    "invalid-audit-chronology"
                 )
 
             if reasons:
                 violations.append(
-                    f"{execution['execution_id']}"
+                    f"{audit['audit_id']}"
                     f"({','.join(reasons)})"
                 )
 
-        if violations:
-            results.append(
-                failed(
-                    "execution_time_within_scope",
-                    "Execution time violations: "
-                    + "; ".join(violations),
-                )
+        results.append(
+            failed(
+                "audit_occurs_after_execution",
+                (
+                    "Audit chronology violations: "
+                    + "; ".join(violations)
+                ),
             )
-        else:
-            results.append(
-                passed(
-                    "execution_time_within_scope",
-                    "Every execution begins and "
-                    "completes within its authorized "
-                    "time window.",
-                )
+            if violations
+            else passed(
+                "audit_occurs_after_execution",
+                (
+                    "Every Audit begins after "
+                    "Execution completion and has "
+                    "valid chronology."
+                ),
             )
+        )
     else:
         results.append(
             skipped(
-                "execution_time_within_scope",
-                "Time scope check is disabled "
-                "by policy.",
+                "audit_occurs_after_execution",
+                (
+                    "Audit chronology check "
+                    "is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_registered_execution_for_royalty"
+    ]:
+        unresolved = [
+            (
+                f"{royalty['royalty_id']}"
+                f"->{royalty['execution_ref']}"
+            )
+            for royalty in royalties
+            if (
+                royalty["execution_ref"]
+                not in execution_index
+            )
+        ]
+
+        results.append(
+            failed(
+                "royalty_execution_reference_exists",
+                (
+                    "Unresolved Royalty Execution "
+                    "references: "
+                    + "; ".join(unresolved)
+                ),
+            )
+            if unresolved
+            else passed(
+                "royalty_execution_reference_exists",
+                (
+                    "Every Royalty Execution "
+                    "reference resolves."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "royalty_execution_reference_exists",
+                (
+                    "Royalty Execution resolution "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_registered_audit_for_royalty"
+    ]:
+        unresolved = [
+            (
+                f"{royalty['royalty_id']}"
+                f"->{royalty['audit_ref']}"
+            )
+            for royalty in royalties
+            if (
+                royalty["audit_ref"]
+                not in audit_index
+            )
+        ]
+
+        results.append(
+            failed(
+                "royalty_audit_reference_exists",
+                (
+                    "Unresolved Royalty Audit "
+                    "references: "
+                    + "; ".join(unresolved)
+                ),
+            )
+            if unresolved
+            else passed(
+                "royalty_audit_reference_exists",
+                (
+                    "Every Royalty Audit reference "
+                    "resolves."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "royalty_audit_reference_exists",
+                (
+                    "Royalty Audit resolution "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_royalty_execution_match"
+    ]:
+        mismatches: list[str] = []
+
+        for royalty in royalties:
+            audit = audit_index.get(
+                royalty["audit_ref"]
+            )
+
+            if audit is None:
+                continue
+
+            if (
+                royalty["execution_ref"]
+                != audit[
+                    "report_execution_ref"
+                ]
+            ):
+                mismatches.append(
+                    f"{royalty['royalty_id']}"
+                    f"(royalty="
+                    f"{royalty['execution_ref']}, "
+                    f"audit="
+                    f"{audit['report_execution_ref']})"
+                )
+
+        results.append(
+            failed(
+                "royalty_execution_matches_audit",
+                (
+                    "Royalty and Audit Execution "
+                    "mismatches: "
+                    + "; ".join(mismatches)
+                ),
+            )
+            if mismatches
+            else passed(
+                "royalty_execution_matches_audit",
+                (
+                    "Every Royalty record references "
+                    "the Execution evaluated by "
+                    "its Audit."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "royalty_execution_matches_audit",
+                (
+                    "Royalty-to-Audit Execution "
+                    "matching is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_passed_audit_before_royalty"
+    ]:
+        violations: list[str] = []
+
+        for royalty in royalties:
+            audit = audit_index.get(
+                royalty["audit_ref"]
+            )
+
+            if (
+                audit is None
+                or royalty[
+                    "royalty_status"
+                ] == "blocked"
+            ):
+                continue
+
+            if audit["verdict"] != "passed":
+                violations.append(
+                    f"{royalty['royalty_id']}"
+                    f"({audit['verdict']})"
+                )
+
+        results.append(
+            failed(
+                "audit_verdict_allows_royalty",
+                (
+                    "Royalty proceeded without "
+                    "a passed Audit: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "audit_verdict_allows_royalty",
+                (
+                    "Every non-blocked Royalty "
+                    "record is backed by a "
+                    "passed Audit."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "audit_verdict_allows_royalty",
+                (
+                    "Passed-Audit gate check "
+                    "is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_royalty_after_audit"
+    ]:
+        violations: list[str] = []
+
+        for royalty in royalties:
+            audit = audit_index.get(
+                royalty["audit_ref"]
+            )
+
+            if (
+                audit is None
+                or royalty[
+                    "royalty_status"
+                ] == "blocked"
+            ):
+                continue
+
+            if (
+                parse_datetime(
+                    royalty["initiated_at"]
+                )
+                < parse_datetime(
+                    audit["completed_at"]
+                )
+            ):
+                violations.append(
+                    f"{royalty['royalty_id']}"
+                    f"(initiated="
+                    f"{royalty['initiated_at']}, "
+                    f"audit_completed="
+                    f"{audit['completed_at']})"
+                )
+
+        results.append(
+            failed(
+                "royalty_occurs_after_audit",
+                (
+                    "Royalty chronology violations: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "royalty_occurs_after_audit",
+                (
+                    "Every non-blocked Royalty "
+                    "record begins after "
+                    "Audit completion."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "royalty_occurs_after_audit",
+                (
+                    "Royalty chronology check "
+                    "is disabled by policy."
+                ),
             )
         )
 
     return results
 
 
-CASE_CONFIGS: dict[str, dict[str, Any]] = {
+CASE_CONFIGS: dict[
+    str,
+    dict[str, Any],
+] = {
     "origin_trace_linkage": {
         "schema_path": (
             SCHEMA_DIR
@@ -1043,13 +1359,15 @@ CASE_CONFIGS: dict[str, dict[str, Any]] = {
             "kazene:conformance-suite:"
             "core-origin-trace"
         ),
-        "semantic_checker": check_origin_trace,
+        "semantic_checker": (
+            check_origin_trace
+        ),
     },
     "trace_authorization_binding": {
         "schema_path": (
             SCHEMA_DIR
-            / "trace-authorization-conformance-case"
-            ".schema.json"
+            / "trace-authorization-conformance-"
+            "case.schema.json"
         ),
         "suite_id": (
             "kazene:conformance-suite:"
@@ -1073,6 +1391,20 @@ CASE_CONFIGS: dict[str, dict[str, Any]] = {
             check_authorization_execution
         ),
     },
+    "execution_audit_royalty_gate": {
+        "schema_path": (
+            SCHEMA_DIR
+            / "execution-audit-royalty-"
+            "conformance-case.schema.json"
+        ),
+        "suite_id": (
+            "kazene:conformance-suite:"
+            "core-execution-audit-royalty"
+        ),
+        "semantic_checker": (
+            check_execution_audit_royalty
+        ),
+    },
 }
 
 
@@ -1080,6 +1412,7 @@ SUPPORTED_STAGE_PAIRS = {
     ("origin", "trace"),
     ("trace", "authorization"),
     ("authorization", "execution"),
+    ("execution", "royalty"),
 }
 
 
@@ -1137,12 +1470,12 @@ def validate_manifests(
             continue
 
         pair = (
-            manifest["stage_pair"][
-                "source_stage"
-            ],
-            manifest["stage_pair"][
-                "target_stage"
-            ],
+            manifest[
+                "stage_pair"
+            ]["source_stage"],
+            manifest[
+                "stage_pair"
+            ]["target_stage"],
         )
 
         if pair not in SUPPORTED_STAGE_PAIRS:
@@ -1150,6 +1483,25 @@ def validate_manifests(
                 "[manifest-semantic-error] "
                 "unsupported stage pair: "
                 f"{pair[0]} -> {pair[1]}"
+            )
+
+            errors_found += 1
+            print()
+            continue
+
+        if (
+            pair == (
+                "execution",
+                "royalty",
+            )
+            and manifest.get(
+                "gate_stage"
+            ) != "audit"
+        ):
+            print(
+                "[manifest-semantic-error] "
+                "execution -> royalty suite "
+                "requires gate_stage: audit"
             )
 
             errors_found += 1
@@ -1245,10 +1597,11 @@ def main() -> int:
         "=== Kazene Protocol Conformance "
         "Suite Validation ==="
     )
-    print("version : 0.3.0")
+    print("version : 0.4.0")
     print(
         "scope   : Origin -> Trace "
-        "-> Authorization -> Execution"
+        "-> Authorization -> Execution "
+        "-> Audit -> Royalty"
     )
     print()
 
@@ -1304,16 +1657,22 @@ def main() -> int:
         return 1
 
     example_paths = sorted(
-        EXAMPLES_DIR.glob("pass/*.yaml")
+        EXAMPLES_DIR.glob(
+            "pass/*.yaml"
+        )
     ) + sorted(
-        EXAMPLES_DIR.glob("fail/*.yaml")
+        EXAMPLES_DIR.glob(
+            "fail/*.yaml"
+        )
     )
 
     if not example_paths:
         print("[fatal] no examples found")
         return 1
 
-    results: list[dict[str, Any]] = []
+    results: list[
+        dict[str, Any]
+    ] = []
 
     for path in example_paths:
         print(
@@ -1334,7 +1693,9 @@ def main() -> int:
             print()
             continue
 
-        case_type = case.get("case_type")
+        case_type = case.get(
+            "case_type"
+        )
 
         if case_type not in CASE_CONFIGS:
             print(
@@ -1347,7 +1708,9 @@ def main() -> int:
             print()
             continue
 
-        config = CASE_CONFIGS[case_type]
+        config = CASE_CONFIGS[
+            case_type
+        ]
 
         errors = schema_errors(
             case,
@@ -1366,15 +1729,19 @@ def main() -> int:
 
         print("[schema-ok]")
 
-        result = evaluate_case(
+        case_result = evaluate_case(
             path,
             case,
             config,
         )
 
-        results.append(result)
+        results.append(
+            case_result
+        )
 
-        for check in result["check_results"]:
+        for check in case_result[
+            "check_results"
+        ]:
             print(
                 f"[{check['status']}] "
                 f"{check['check_id']}: "
@@ -1388,7 +1755,9 @@ def main() -> int:
         )
 
         if (
-            result["expected_outcome"]
+            case_result[
+                "expected_outcome"
+            ]
             != folder_expected
         ):
             print(
@@ -1397,23 +1766,25 @@ def main() -> int:
                 "expected_outcome disagree: "
                 f"folder={folder_expected}, "
                 f"declared="
-                f"{result['expected_outcome']}"
+                f"{case_result['expected_outcome']}"
             )
 
             fatal_errors += 1
 
-        if result["matched_expectation"]:
+        if case_result[
+            "matched_expectation"
+        ]:
             print(
                 "[expectation-ok] "
-                f"{result['actual_outcome']}"
+                f"{case_result['actual_outcome']}"
             )
         else:
             print(
                 "[expectation-mismatch] "
                 f"expected="
-                f"{result['expected_outcome']}, "
+                f"{case_result['expected_outcome']}, "
                 f"actual="
-                f"{result['actual_outcome']}"
+                f"{case_result['actual_outcome']}"
             )
 
             fatal_errors += 1
@@ -1427,33 +1798,35 @@ def main() -> int:
     )
 
     report = {
-        "schema_version": "0.3.0",
+        "schema_version": "0.4.0",
         "suite_id": (
             "kazene:conformance-suite:core"
         ),
-        "suite_version": "0.3.0",
+        "suite_version": "0.4.0",
         "generated_at": generated_at,
         "summary": {
             "total_cases": len(results),
             "conformant_cases": sum(
-                result["actual_outcome"]
+                item["actual_outcome"]
                 == "conformant"
-                for result in results
+                for item in results
             ),
             "nonconformant_cases": sum(
-                result["actual_outcome"]
+                item["actual_outcome"]
                 == "nonconformant"
-                for result in results
+                for item in results
             ),
             "matched_expectations": sum(
-                result["matched_expectation"]
-                for result in results
-            ),
-            "mismatched_expectations": sum(
-                not result[
+                item[
                     "matched_expectation"
                 ]
-                for result in results
+                for item in results
+            ),
+            "mismatched_expectations": sum(
+                not item[
+                    "matched_expectation"
+                ]
+                for item in results
             ),
         },
         "results": results,
