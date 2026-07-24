@@ -1,0 +1,45 @@
+schema_version: "0.4.0"
+case_id: case:execution-audit-royalty:execution-mismatch
+case_type: execution_audit_royalty_gate
+title: Royalty references a different Execution than the Audit
+description: The Audit passes one Execution, but Royalty is generated for another Execution.
+expected_outcome: nonconformant
+
+execution_records:
+  - execution_id: kazene:execution:audited-001
+    authorization_ref: kazene:authorization:audited-001
+    execution_status: succeeded
+    completed_at: "2026-07-24T05:00:00Z"
+
+  - execution_id: kazene:execution:unaudited-002
+    authorization_ref: kazene:authorization:unaudited-002
+    execution_status: succeeded
+    completed_at: "2026-07-24T05:00:01Z"
+
+audit_records:
+  - audit_id: kazene:audit:audited-001
+    request_execution_ref: kazene:execution:audited-001
+    report_execution_ref: kazene:execution:audited-001
+    verdict: passed
+    started_at: "2026-07-24T05:00:02Z"
+    completed_at: "2026-07-24T05:00:05Z"
+
+royalty_records:
+  - royalty_id: kazene:royalty:execution-mismatch-001
+    execution_ref: kazene:execution:unaudited-002
+    audit_ref: kazene:audit:audited-001
+    royalty_status: eligible
+    initiated_at: "2026-07-24T05:00:06Z"
+
+policy:
+  require_unique_execution_ids: true
+  require_unique_audit_ids: true
+  require_unique_royalty_ids: true
+  require_registered_execution_for_audit: true
+  require_preserved_execution_binding: true
+  require_audit_after_execution: true
+  require_registered_execution_for_royalty: true
+  require_registered_audit_for_royalty: true
+  require_royalty_execution_match: true
+  require_passed_audit_before_royalty: true
+  require_royalty_after_audit: true
