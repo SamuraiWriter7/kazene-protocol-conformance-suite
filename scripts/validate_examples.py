@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Kazene cross-protocol conformance examples through v0.4."""
+"""Validate Kazene cross-protocol conformance examples through v0.5."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import json
 import sys
 from collections import Counter
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable
 
@@ -37,10 +38,8 @@ SemanticChecker = Callable[
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
-    with path.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
+    """Load a YAML object from disk."""
+    with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle)
 
     if not isinstance(data, dict):
@@ -52,10 +51,8 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 
 def load_json(path: Path) -> dict[str, Any]:
-    with path.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
+    """Load a JSON object from disk."""
+    with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
 
     if not isinstance(data, dict):
@@ -67,6 +64,7 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def format_path(error_path: Any) -> str:
+    """Format a jsonschema error path."""
     parts = [
         str(part)
         for part in error_path
@@ -83,6 +81,7 @@ def schema_errors(
     instance: dict[str, Any],
     schema: dict[str, Any],
 ) -> list[str]:
+    """Return sorted JSON Schema validation errors."""
     validator = Draft202012Validator(
         schema,
         format_checker=FormatChecker(),
@@ -94,17 +93,20 @@ def schema_errors(
     )
 
     return [
-        f"{format_path(error.path)}: "
-        f"{error.message}"
+        (
+            f"{format_path(error.path)}: "
+            f"{error.message}"
+        )
         for error in errors
     ]
 
 
-def result(
+def make_result(
     check_id: str,
     status: str,
     message: str,
 ) -> dict[str, str]:
+    """Build a machine-readable check result."""
     return {
         "check_id": check_id,
         "status": status,
@@ -116,7 +118,7 @@ def passed(
     check_id: str,
     message: str,
 ) -> dict[str, str]:
-    return result(
+    return make_result(
         check_id,
         "passed",
         message,
@@ -127,7 +129,7 @@ def failed(
     check_id: str,
     message: str,
 ) -> dict[str, str]:
-    return result(
+    return make_result(
         check_id,
         "failed",
         message,
@@ -138,7 +140,7 @@ def skipped(
     check_id: str,
     message: str,
 ) -> dict[str, str]:
-    return result(
+    return make_result(
         check_id,
         "skipped",
         message,
@@ -148,6 +150,7 @@ def skipped(
 def duplicate_values(
     values: list[str],
 ) -> list[str]:
+    """Return sorted duplicate values."""
     return sorted(
         value
         for value, count
@@ -159,6 +162,7 @@ def duplicate_values(
 def parse_datetime(
     value: str,
 ) -> datetime:
+    """Parse an RFC 3339 / ISO 8601 datetime."""
     return datetime.fromisoformat(
         value.replace(
             "Z",
@@ -173,11 +177,12 @@ def unique_check(
     check_id: str,
     label: str,
 ) -> dict[str, str]:
+    """Run a reusable canonical identifier uniqueness check."""
     if not enabled:
         return skipped(
             check_id,
             (
-                f"{label} uniqueness check "
+                f"{label} ID uniqueness check "
                 "is disabled by policy."
             ),
         )
@@ -199,9 +204,48 @@ def unique_check(
     )
 
 
+def decimal_amount(
+    value: Any,
+) -> Decimal:
+    """Convert a schema-validated numeric value to Decimal."""
+    try:
+        return Decimal(str(value))
+    except (
+        InvalidOperation,
+        ValueError,
+        TypeError,
+    ) as exc:
+        raise ValueError(
+            f"invalid decimal amount: {value!r}"
+        ) from exc
+
+
+def money_equal(
+    left: dict[str, Any],
+    right: dict[str, Any],
+) -> bool:
+    """Compare two money objects exactly."""
+    return (
+        left["currency"] == right["currency"]
+        and decimal_amount(left["amount"])
+        == decimal_amount(right["amount"])
+    )
+
+
+def format_money(
+    value: dict[str, Any],
+) -> str:
+    """Format a money object for diagnostics."""
+    return (
+        f"{value['amount']} "
+        f"{value['currency']}"
+    )
+
+
 def check_origin_trace(
     case: dict[str, Any],
 ) -> list[dict[str, str]]:
+    """Validate Origin-to-Trace linkage."""
     origins = case["origin_records"]
     traces = case["trace_records"]
     policy = case["policy"]
@@ -211,7 +255,7 @@ def check_origin_trace(
         for record in origins
     }
 
-    referenced = sorted(
+    referenced_origin_ids = sorted(
         {
             origin_ref
             for trace in traces
@@ -248,7 +292,7 @@ def check_origin_trace(
     if policy["require_registered_origin"]:
         missing = [
             origin_id
-            for origin_id in referenced
+            for origin_id in referenced_origin_ids
             if origin_id not in origin_index
         ]
 
@@ -286,7 +330,7 @@ def check_origin_trace(
                 f"{origin_id}"
                 f"({origin_index[origin_id]['status']})"
             )
-            for origin_id in referenced
+            for origin_id in referenced_origin_ids
             if (
                 origin_id in origin_index
                 and origin_index[
@@ -329,6 +373,7 @@ def check_origin_trace(
 def check_trace_authorization(
     case: dict[str, Any],
 ) -> list[dict[str, str]]:
+    """Validate Trace propagation into Authorization."""
     traces = case["trace_records"]
     authorizations = case[
         "authorization_records"
@@ -368,17 +413,21 @@ def check_trace_authorization(
     if policy["require_registered_trace"]:
         unresolved: list[str] = []
 
-        for record in authorizations:
+        for authorization in authorizations:
             for field_name in (
                 "request_trace_ref",
                 "receipt_trace_ref",
             ):
-                trace_ref = record[field_name]
+                trace_ref = authorization[
+                    field_name
+                ]
 
                 if trace_ref not in trace_index:
                     unresolved.append(
-                        f"{record['authorization_id']}."
-                        f"{field_name}={trace_ref}"
+                        (
+                            f"{authorization['authorization_id']}."
+                            f"{field_name}={trace_ref}"
+                        )
                     )
 
         results.append(
@@ -417,16 +466,20 @@ def check_trace_authorization(
     ]:
         substitutions = [
             (
-                f"{record['authorization_id']}"
+                f"{authorization['authorization_id']}"
                 f"(request="
-                f"{record['request_trace_ref']}, "
+                f"{authorization['request_trace_ref']}, "
                 f"receipt="
-                f"{record['receipt_trace_ref']})"
+                f"{authorization['receipt_trace_ref']})"
             )
-            for record in authorizations
+            for authorization in authorizations
             if (
-                record["request_trace_ref"]
-                != record["receipt_trace_ref"]
+                authorization[
+                    "request_trace_ref"
+                ]
+                != authorization[
+                    "receipt_trace_ref"
+                ]
             )
         ]
 
@@ -465,6 +518,7 @@ def check_trace_authorization(
 def check_authorization_execution(
     case: dict[str, Any],
 ) -> list[dict[str, str]]:
+    """Validate Execution against Authorization scope."""
     authorizations = case[
         "authorization_records"
     ]
@@ -777,15 +831,12 @@ def check_authorization_execution(
         valid_from = parse_datetime(
             scope["valid_from"]
         )
-
         valid_until = parse_datetime(
             scope["valid_until"]
         )
-
         started_at = parse_datetime(
             execution["started_at"]
         )
-
         completed_at = parse_datetime(
             execution["completed_at"]
         )
@@ -841,6 +892,7 @@ def check_authorization_execution(
 def check_execution_audit_royalty(
     case: dict[str, Any],
 ) -> list[dict[str, str]]:
+    """Validate the Audit gate before Royalty."""
     executions = case[
         "execution_records"
     ]
@@ -913,9 +965,11 @@ def check_execution_audit_royalty(
                     not in execution_index
                 ):
                     unresolved.append(
-                        f"{audit['audit_id']}."
-                        f"{field_name}="
-                        f"{execution_ref}"
+                        (
+                            f"{audit['audit_id']}."
+                            f"{field_name}="
+                            f"{execution_ref}"
+                        )
                     )
 
         results.append(
@@ -1020,11 +1074,9 @@ def check_execution_audit_royalty(
                     execution["completed_at"]
                 )
             )
-
             audit_started = parse_datetime(
                 audit["started_at"]
             )
-
             audit_completed = parse_datetime(
                 audit["completed_at"]
             )
@@ -1188,11 +1240,13 @@ def check_execution_audit_royalty(
                 ]
             ):
                 mismatches.append(
-                    f"{royalty['royalty_id']}"
-                    f"(royalty="
-                    f"{royalty['execution_ref']}, "
-                    f"audit="
-                    f"{audit['report_execution_ref']})"
+                    (
+                        f"{royalty['royalty_id']}"
+                        f"(royalty="
+                        f"{royalty['execution_ref']}, "
+                        f"audit="
+                        f"{audit['report_execution_ref']})"
+                    )
                 )
 
         results.append(
@@ -1245,8 +1299,10 @@ def check_execution_audit_royalty(
 
             if audit["verdict"] != "passed":
                 violations.append(
-                    f"{royalty['royalty_id']}"
-                    f"({audit['verdict']})"
+                    (
+                        f"{royalty['royalty_id']}"
+                        f"({audit['verdict']})"
+                    )
                 )
 
         results.append(
@@ -1306,11 +1362,13 @@ def check_execution_audit_royalty(
                 )
             ):
                 violations.append(
-                    f"{royalty['royalty_id']}"
-                    f"(initiated="
-                    f"{royalty['initiated_at']}, "
-                    f"audit_completed="
-                    f"{audit['completed_at']})"
+                    (
+                        f"{royalty['royalty_id']}"
+                        f"(initiated="
+                        f"{royalty['initiated_at']}, "
+                        f"audit_completed="
+                        f"{audit['completed_at']})"
+                    )
                 )
 
         results.append(
@@ -1338,6 +1396,955 @@ def check_execution_audit_royalty(
                 (
                     "Royalty chronology check "
                     "is disabled by policy."
+                ),
+            )
+        )
+
+    return results
+
+
+def check_royalty_dispute_settlement(
+    case: dict[str, Any],
+) -> list[dict[str, str]]:
+    """Validate Dispute, Holdback, and Settlement integrity."""
+    royalties = case["royalty_records"]
+    disputes = case["dispute_records"]
+    holdbacks = case["holdback_records"]
+    settlements = case["settlement_records"]
+    policy = case["policy"]
+
+    royalty_index = {
+        record["royalty_id"]: record
+        for record in royalties
+    }
+
+    dispute_index = {
+        record["dispute_id"]: record
+        for record in disputes
+    }
+
+    holdback_index = {
+        record["holdback_id"]: record
+        for record in holdbacks
+    }
+
+    disputes_by_royalty: dict[
+        str,
+        list[dict[str, Any]],
+    ] = {}
+
+    for dispute in disputes:
+        disputes_by_royalty.setdefault(
+            dispute["royalty_ref"],
+            [],
+        ).append(dispute)
+
+    holdbacks_by_dispute: dict[
+        str,
+        list[dict[str, Any]],
+    ] = {}
+
+    for holdback in holdbacks:
+        holdbacks_by_dispute.setdefault(
+            holdback["dispute_ref"],
+            [],
+        ).append(holdback)
+
+    unresolved_statuses = {
+        "open",
+        "under_review",
+    }
+
+    results = [
+        unique_check(
+            policy[
+                "require_unique_royalty_ids"
+            ],
+            [
+                record["royalty_id"]
+                for record in royalties
+            ],
+            "royalty_id_unique",
+            "Royalty",
+        ),
+        unique_check(
+            policy[
+                "require_unique_dispute_ids"
+            ],
+            [
+                record["dispute_id"]
+                for record in disputes
+            ],
+            "dispute_id_unique",
+            "Dispute",
+        ),
+        unique_check(
+            policy[
+                "require_unique_holdback_ids"
+            ],
+            [
+                record["holdback_id"]
+                for record in holdbacks
+            ],
+            "holdback_id_unique",
+            "Holdback",
+        ),
+        unique_check(
+            policy[
+                "require_unique_settlement_ids"
+            ],
+            [
+                record["settlement_id"]
+                for record in settlements
+            ],
+            "settlement_id_unique",
+            "Settlement",
+        ),
+    ]
+
+    if policy[
+        "require_registered_royalty_for_dispute"
+    ]:
+        unresolved = [
+            (
+                f"{dispute['dispute_id']}"
+                f"->{dispute['royalty_ref']}"
+            )
+            for dispute in disputes
+            if (
+                dispute["royalty_ref"]
+                not in royalty_index
+            )
+        ]
+
+        results.append(
+            failed(
+                "dispute_royalty_reference_exists",
+                (
+                    "Unresolved Dispute Royalty "
+                    "references: "
+                    + "; ".join(unresolved)
+                ),
+            )
+            if unresolved
+            else passed(
+                "dispute_royalty_reference_exists",
+                (
+                    "Every Dispute Royalty "
+                    "reference resolves."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "dispute_royalty_reference_exists",
+                (
+                    "Dispute Royalty resolution "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_registered_dispute_for_holdback"
+    ]:
+        unresolved = [
+            (
+                f"{holdback['holdback_id']}"
+                f"->{holdback['dispute_ref']}"
+            )
+            for holdback in holdbacks
+            if (
+                holdback["dispute_ref"]
+                not in dispute_index
+            )
+        ]
+
+        results.append(
+            failed(
+                "holdback_dispute_reference_exists",
+                (
+                    "Unresolved Holdback Dispute "
+                    "references: "
+                    + "; ".join(unresolved)
+                ),
+            )
+            if unresolved
+            else passed(
+                "holdback_dispute_reference_exists",
+                (
+                    "Every Holdback Dispute "
+                    "reference resolves."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "holdback_dispute_reference_exists",
+                (
+                    "Holdback Dispute resolution "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_registered_royalty_for_holdback"
+    ]:
+        unresolved = [
+            (
+                f"{holdback['holdback_id']}"
+                f"->{holdback['royalty_ref']}"
+            )
+            for holdback in holdbacks
+            if (
+                holdback["royalty_ref"]
+                not in royalty_index
+            )
+        ]
+
+        mismatches = [
+            (
+                f"{holdback['holdback_id']}"
+                f"(holdback="
+                f"{holdback['royalty_ref']}, "
+                f"dispute="
+                f"{dispute_index[holdback['dispute_ref']]['royalty_ref']})"
+            )
+            for holdback in holdbacks
+            if (
+                holdback["dispute_ref"]
+                in dispute_index
+                and holdback["royalty_ref"]
+                != dispute_index[
+                    holdback["dispute_ref"]
+                ]["royalty_ref"]
+            )
+        ]
+
+        violations = unresolved + mismatches
+
+        results.append(
+            failed(
+                "holdback_royalty_reference_exists",
+                (
+                    "Invalid Holdback Royalty "
+                    "bindings: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "holdback_royalty_reference_exists",
+                (
+                    "Every Holdback references "
+                    "the same registered Royalty "
+                    "as its Dispute."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "holdback_royalty_reference_exists",
+                (
+                    "Holdback Royalty resolution "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_registered_royalty_for_settlement"
+    ]:
+        unresolved = [
+            (
+                f"{settlement['settlement_id']}"
+                f"->{settlement['royalty_ref']}"
+            )
+            for settlement in settlements
+            if (
+                settlement["royalty_ref"]
+                not in royalty_index
+            )
+        ]
+
+        results.append(
+            failed(
+                "settlement_royalty_reference_exists",
+                (
+                    "Unresolved Settlement Royalty "
+                    "references: "
+                    + "; ".join(unresolved)
+                ),
+            )
+            if unresolved
+            else passed(
+                "settlement_royalty_reference_exists",
+                (
+                    "Every Settlement Royalty "
+                    "reference resolves."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "settlement_royalty_reference_exists",
+                (
+                    "Settlement Royalty resolution "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_complete_dispute_disclosure"
+    ]:
+        violations: list[str] = []
+
+        for settlement in settlements:
+            expected = {
+                dispute["dispute_id"]
+                for dispute
+                in disputes_by_royalty.get(
+                    settlement["royalty_ref"],
+                    [],
+                )
+            }
+
+            declared = set(
+                settlement["dispute_refs"]
+            )
+
+            missing = sorted(
+                expected - declared
+            )
+
+            foreign = sorted(
+                dispute_ref
+                for dispute_ref in declared
+                if (
+                    dispute_ref
+                    not in dispute_index
+                    or dispute_index[
+                        dispute_ref
+                    ]["royalty_ref"]
+                    != settlement["royalty_ref"]
+                )
+            )
+
+            if missing or foreign:
+                parts: list[str] = []
+
+                if missing:
+                    parts.append(
+                        "missing="
+                        + ",".join(missing)
+                    )
+
+                if foreign:
+                    parts.append(
+                        "foreign="
+                        + ",".join(foreign)
+                    )
+
+                violations.append(
+                    (
+                        f"{settlement['settlement_id']}"
+                        f"({';'.join(parts)})"
+                    )
+                )
+
+        results.append(
+            failed(
+                "settlement_dispute_refs_complete",
+                (
+                    "Incomplete or foreign "
+                    "Settlement Dispute references: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "settlement_dispute_refs_complete",
+                (
+                    "Every Settlement discloses "
+                    "all and only the Disputes "
+                    "attached to its Royalty."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "settlement_dispute_refs_complete",
+                (
+                    "Complete Dispute disclosure "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_unresolved_dispute_block"
+    ]:
+        violations: list[str] = []
+
+        for settlement in settlements:
+            unresolved_disputes = [
+                dispute["dispute_id"]
+                for dispute
+                in disputes_by_royalty.get(
+                    settlement["royalty_ref"],
+                    [],
+                )
+                if (
+                    dispute["status"]
+                    in unresolved_statuses
+                )
+            ]
+
+            if (
+                unresolved_disputes
+                and settlement[
+                    "settlement_status"
+                ] == "settled"
+            ):
+                violations.append(
+                    (
+                        f"{settlement['settlement_id']}"
+                        f"(unresolved="
+                        f"{','.join(sorted(unresolved_disputes))})"
+                    )
+                )
+
+        results.append(
+            failed(
+                "unresolved_dispute_blocks_settlement",
+                (
+                    "Settlements completed with "
+                    "unresolved Disputes: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "unresolved_dispute_blocks_settlement",
+                (
+                    "No Settlement is finalized "
+                    "while a related Dispute "
+                    "remains unresolved."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "unresolved_dispute_blocks_settlement",
+                (
+                    "Unresolved Dispute blocking "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy["require_required_holdback"]:
+        violations: list[str] = []
+
+        for dispute in disputes:
+            if not dispute[
+                "holdback_required"
+            ]:
+                continue
+
+            candidates = (
+                holdbacks_by_dispute.get(
+                    dispute["dispute_id"],
+                    [],
+                )
+            )
+
+            required_amount = dispute[
+                "holdback_amount"
+            ]
+
+            qualifying: list[
+                dict[str, Any]
+            ] = []
+
+            for holdback in candidates:
+                sufficient_amount = (
+                    holdback[
+                        "amount"
+                    ]["currency"]
+                    == required_amount[
+                        "currency"
+                    ]
+                    and decimal_amount(
+                        holdback[
+                            "amount"
+                        ]["amount"]
+                    )
+                    >= decimal_amount(
+                        required_amount[
+                            "amount"
+                        ]
+                    )
+                )
+
+                valid_status = (
+                    holdback["status"]
+                    == "reserved"
+                    if (
+                        dispute["status"]
+                        in unresolved_statuses
+                    )
+                    else holdback["status"]
+                    in {
+                        "reserved",
+                        "released",
+                        "forfeited",
+                    }
+                )
+
+                same_royalty = (
+                    holdback["royalty_ref"]
+                    == dispute["royalty_ref"]
+                )
+
+                if (
+                    sufficient_amount
+                    and valid_status
+                    and same_royalty
+                ):
+                    qualifying.append(
+                        holdback
+                    )
+
+            if not qualifying:
+                violations.append(
+                    (
+                        f"{dispute['dispute_id']}"
+                        f"(required="
+                        f"{format_money(required_amount)})"
+                    )
+                )
+
+        results.append(
+            failed(
+                "required_holdback_present",
+                (
+                    "Missing or insufficient "
+                    "required Holdbacks: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "required_holdback_present",
+                (
+                    "Every Holdback-required "
+                    "Dispute has a sufficient "
+                    "compatible Holdback."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "required_holdback_present",
+                (
+                    "Required Holdback check "
+                    "is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_settlement_after_resolution"
+    ]:
+        violations: list[str] = []
+
+        for settlement in settlements:
+            if (
+                settlement[
+                    "settlement_status"
+                ]
+                != "settled"
+            ):
+                continue
+
+            initiated_at = parse_datetime(
+                settlement["initiated_at"]
+            )
+
+            royalty = royalty_index.get(
+                settlement["royalty_ref"]
+            )
+
+            reasons: list[str] = []
+
+            if (
+                royalty is not None
+                and initiated_at
+                < parse_datetime(
+                    royalty["allocated_at"]
+                )
+            ):
+                reasons.append(
+                    "initiated-before-"
+                    "royalty-allocation"
+                )
+
+            for dispute in (
+                disputes_by_royalty.get(
+                    settlement["royalty_ref"],
+                    [],
+                )
+            ):
+                resolved_at = dispute.get(
+                    "resolved_at"
+                )
+
+                if resolved_at is None:
+                    reasons.append(
+                        (
+                            f"{dispute['dispute_id']}:"
+                            "missing-resolution-time"
+                        )
+                    )
+                elif (
+                    initiated_at
+                    < parse_datetime(
+                        resolved_at
+                    )
+                ):
+                    reasons.append(
+                        (
+                            f"{dispute['dispute_id']}:"
+                            "initiated-before-resolution"
+                        )
+                    )
+
+            completed_at = settlement.get(
+                "completed_at"
+            )
+
+            if completed_at is None:
+                reasons.append(
+                    "missing-completed-at"
+                )
+            elif (
+                initiated_at
+                > parse_datetime(
+                    completed_at
+                )
+            ):
+                reasons.append(
+                    "invalid-settlement-chronology"
+                )
+
+            if reasons:
+                violations.append(
+                    (
+                        f"{settlement['settlement_id']}"
+                        f"({','.join(reasons)})"
+                    )
+                )
+
+        results.append(
+            failed(
+                "settlement_occurs_after_dispute_resolution",
+                (
+                    "Settlement chronology "
+                    "violations: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "settlement_occurs_after_dispute_resolution",
+                (
+                    "Every finalized Settlement "
+                    "begins after Royalty allocation "
+                    "and all related Dispute "
+                    "resolutions."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "settlement_occurs_after_dispute_resolution",
+                (
+                    "Settlement chronology check "
+                    "is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_amount_conservation"
+    ]:
+        violations: list[str] = []
+
+        for settlement in settlements:
+            royalty = royalty_index.get(
+                settlement["royalty_ref"]
+            )
+
+            if royalty is None:
+                continue
+
+            gross = settlement[
+                "gross_amount"
+            ]
+            withheld = settlement[
+                "withheld_amount"
+            ]
+            paid = settlement[
+                "paid_amount"
+            ]
+
+            reasons: list[str] = []
+
+            if not money_equal(
+                gross,
+                royalty["gross_amount"],
+            ):
+                reasons.append(
+                    "gross-does-not-match-royalty"
+                )
+
+            currencies = {
+                gross["currency"],
+                withheld["currency"],
+                paid["currency"],
+            }
+
+            if len(currencies) != 1:
+                reasons.append(
+                    "settlement-currency-mismatch"
+                )
+            else:
+                gross_amount = decimal_amount(
+                    gross["amount"]
+                )
+                withheld_amount = (
+                    decimal_amount(
+                        withheld["amount"]
+                    )
+                )
+                paid_amount = decimal_amount(
+                    paid["amount"]
+                )
+
+                if (
+                    withheld_amount
+                    + paid_amount
+                    != gross_amount
+                ):
+                    reasons.append(
+                        "paid-plus-withheld-"
+                        "not-equal-gross"
+                    )
+
+                unknown_holdback_refs = [
+                    holdback_ref
+                    for holdback_ref in settlement[
+                        "holdback_refs"
+                    ]
+                    if (
+                        holdback_ref
+                        not in holdback_index
+                    )
+                ]
+
+                foreign_holdback_refs = [
+                    holdback_ref
+                    for holdback_ref in settlement[
+                        "holdback_refs"
+                    ]
+                    if (
+                        holdback_ref
+                        in holdback_index
+                        and holdback_index[
+                            holdback_ref
+                        ]["royalty_ref"]
+                        != settlement[
+                            "royalty_ref"
+                        ]
+                    )
+                ]
+
+                if unknown_holdback_refs:
+                    reasons.append(
+                        "unknown-holdback-reference"
+                    )
+
+                if foreign_holdback_refs:
+                    reasons.append(
+                        "foreign-holdback-reference"
+                    )
+
+                declared_holdbacks = [
+                    holdback_index[
+                        holdback_ref
+                    ]
+                    for holdback_ref
+                    in settlement[
+                        "holdback_refs"
+                    ]
+                    if (
+                        holdback_ref
+                        in holdback_index
+                        and holdback_index[
+                            holdback_ref
+                        ]["royalty_ref"]
+                        == settlement[
+                            "royalty_ref"
+                        ]
+                    )
+                ]
+
+                reserved_total = sum(
+                    (
+                        decimal_amount(
+                            holdback[
+                                "amount"
+                            ]["amount"]
+                        )
+                        for holdback
+                        in declared_holdbacks
+                        if (
+                            holdback["status"]
+                            == "reserved"
+                            and holdback[
+                                "amount"
+                            ]["currency"]
+                            == gross["currency"]
+                        )
+                    ),
+                    Decimal("0"),
+                )
+
+                if (
+                    reserved_total
+                    != withheld_amount
+                ):
+                    reasons.append(
+                        "withheld-does-not-match-"
+                        "reserved-holdbacks"
+                    )
+
+                if (
+                    settlement[
+                        "settlement_status"
+                    ] == "settled"
+                    and withheld_amount
+                    != Decimal("0")
+                ):
+                    reasons.append(
+                        "final-settlement-"
+                        "retains-holdback"
+                    )
+
+            if reasons:
+                violations.append(
+                    (
+                        f"{settlement['settlement_id']}"
+                        f"({','.join(reasons)})"
+                    )
+                )
+
+        results.append(
+            failed(
+                "settlement_amount_conserved",
+                (
+                    "Settlement amount violations: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "settlement_amount_conserved",
+                (
+                    "Every Settlement conserves "
+                    "value across gross, paid, "
+                    "and reserved Holdback amounts."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "settlement_amount_conserved",
+                (
+                    "Settlement amount conservation "
+                    "check is disabled by policy."
+                ),
+            )
+        )
+
+    if policy[
+        "require_settleable_royalty_status"
+    ]:
+        violations: list[str] = []
+
+        for settlement in settlements:
+            if (
+                settlement[
+                    "settlement_status"
+                ]
+                != "settled"
+            ):
+                continue
+
+            royalty = royalty_index.get(
+                settlement["royalty_ref"]
+            )
+
+            if (
+                royalty is not None
+                and royalty[
+                    "royalty_status"
+                ] != "allocated"
+            ):
+                violations.append(
+                    (
+                        f"{settlement['settlement_id']}"
+                        f"({royalty['royalty_status']})"
+                    )
+                )
+
+        results.append(
+            failed(
+                "royalty_status_allows_settlement",
+                (
+                    "Final Settlement used "
+                    "non-allocated Royalties: "
+                    + "; ".join(violations)
+                ),
+            )
+            if violations
+            else passed(
+                "royalty_status_allows_settlement",
+                (
+                    "Every finalized Settlement "
+                    "references an allocated Royalty."
+                ),
+            )
+        )
+    else:
+        results.append(
+            skipped(
+                "royalty_status_allows_settlement",
+                (
+                    "Royalty settlement-status "
+                    "check is disabled by policy."
                 ),
             )
         )
@@ -1405,6 +2412,20 @@ CASE_CONFIGS: dict[
             check_execution_audit_royalty
         ),
     },
+    "royalty_dispute_settlement_integrity": {
+        "schema_path": (
+            SCHEMA_DIR
+            / "royalty-dispute-settlement-"
+            "conformance-case.schema.json"
+        ),
+        "suite_id": (
+            "kazene:conformance-suite:"
+            "core-royalty-dispute-settlement"
+        ),
+        "semantic_checker": (
+            check_royalty_dispute_settlement
+        ),
+    },
 }
 
 
@@ -1413,6 +2434,18 @@ SUPPORTED_STAGE_PAIRS = {
     ("trace", "authorization"),
     ("authorization", "execution"),
     ("execution", "royalty"),
+    ("royalty", "settlement"),
+}
+
+EXPECTED_GATES = {
+    (
+        "execution",
+        "royalty",
+    ): "audit",
+    (
+        "royalty",
+        "settlement",
+    ): "dispute_resolution",
 }
 
 
@@ -1422,22 +2455,40 @@ def validate_manifests(
     dict[str, dict[str, Any]],
     int,
 ]:
+    """Validate all suite manifests."""
     manifests: dict[
         str,
         dict[str, Any],
     ] = {}
 
     errors_found = 0
-
-    for path in sorted(
+    manifest_paths = sorted(
         MANIFEST_DIR.glob("*.yaml")
-    ):
+    )
+
+    if not manifest_paths:
+        print("[fatal] no manifests found")
+        return manifests, 1
+
+    for path in manifest_paths:
         print(
             "[validate-manifest] "
             f"{path.relative_to(ROOT)}"
         )
 
-        manifest = load_yaml(path)
+        try:
+            manifest = load_yaml(path)
+        except (
+            OSError,
+            ValueError,
+            yaml.YAMLError,
+        ) as exc:
+            print(
+                f"[manifest-load-error] {exc}"
+            )
+            errors_found += 1
+            print()
+            continue
 
         errors = schema_errors(
             manifest,
@@ -1489,19 +2540,35 @@ def validate_manifests(
             print()
             continue
 
+        expected_gate = (
+            EXPECTED_GATES.get(pair)
+        )
+
         if (
-            pair == (
-                "execution",
-                "royalty",
-            )
+            expected_gate is not None
             and manifest.get(
                 "gate_stage"
-            ) != "audit"
+            ) != expected_gate
         ):
             print(
                 "[manifest-semantic-error] "
-                "execution -> royalty suite "
-                "requires gate_stage: audit"
+                f"{pair[0]} -> {pair[1]} suite "
+                f"requires gate_stage: "
+                f"{expected_gate}"
+            )
+
+            errors_found += 1
+            print()
+            continue
+
+        if (
+            expected_gate is None
+            and "gate_stage" in manifest
+        ):
+            print(
+                "[manifest-semantic-error] "
+                f"{pair[0]} -> {pair[1]} suite "
+                "must not declare gate_stage"
             )
 
             errors_found += 1
@@ -1556,6 +2623,7 @@ def evaluate_case(
     case: dict[str, Any],
     config: dict[str, Any],
 ) -> dict[str, Any]:
+    """Run semantic checks and compare the actual result with expectation."""
     checker: SemanticChecker = config[
         "semantic_checker"
     ]
@@ -1593,15 +2661,17 @@ def evaluate_case(
 
 
 def main() -> int:
+    """Validate manifests, examples, and the generated result report."""
     print(
         "=== Kazene Protocol Conformance "
         "Suite Validation ==="
     )
-    print("version : 0.4.0")
+    print("version : 0.5.0")
     print(
         "scope   : Origin -> Trace "
         "-> Authorization -> Execution "
-        "-> Audit -> Royalty"
+        "-> Audit -> Royalty "
+        "-> Dispute/Holdback -> Settlement"
     )
     print()
 
@@ -1622,21 +2692,19 @@ def main() -> int:
             in CASE_CONFIGS.items()
         }
 
-        (
-            manifests,
-            fatal_errors,
-        ) = validate_manifests(
-            manifest_schema
-        )
-
     except (
         OSError,
         ValueError,
         json.JSONDecodeError,
-        yaml.YAMLError,
     ) as exc:
         print(f"[fatal] {exc}")
         return 1
+
+    manifests, fatal_errors = (
+        validate_manifests(
+            manifest_schema
+        )
+    )
 
     required_suite_ids = {
         config["suite_id"]
@@ -1656,13 +2724,16 @@ def main() -> int:
 
         return 1
 
-    example_paths = sorted(
-        EXAMPLES_DIR.glob(
-            "pass/*.yaml"
+    example_paths = (
+        sorted(
+            EXAMPLES_DIR.glob(
+                "pass/*.yaml"
+            )
         )
-    ) + sorted(
-        EXAMPLES_DIR.glob(
-            "fail/*.yaml"
+        + sorted(
+            EXAMPLES_DIR.glob(
+                "fail/*.yaml"
+            )
         )
     )
 
@@ -1673,6 +2744,8 @@ def main() -> int:
     results: list[
         dict[str, Any]
     ] = []
+
+    seen_case_ids: set[str] = set()
 
     for path in example_paths:
         print(
@@ -1729,11 +2802,37 @@ def main() -> int:
 
         print("[schema-ok]")
 
-        case_result = evaluate_case(
-            path,
-            case,
-            config,
-        )
+        case_id = case["case_id"]
+
+        if case_id in seen_case_ids:
+            print(
+                "[case-id-error] "
+                f"duplicate case ID: {case_id}"
+            )
+            fatal_errors += 1
+            print()
+            continue
+
+        seen_case_ids.add(case_id)
+
+        try:
+            case_result = evaluate_case(
+                path,
+                case,
+                config,
+            )
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            print(
+                "[semantic-error] "
+                f"{case_id}: {exc}"
+            )
+            fatal_errors += 1
+            print()
+            continue
 
         results.append(
             case_result
@@ -1798,11 +2897,11 @@ def main() -> int:
     )
 
     report = {
-        "schema_version": "0.4.0",
+        "schema_version": "0.5.0",
         "suite_id": (
             "kazene:conformance-suite:core"
         ),
-        "suite_version": "0.4.0",
+        "suite_version": "0.5.0",
         "generated_at": generated_at,
         "summary": {
             "total_cases": len(results),
@@ -1866,7 +2965,6 @@ def main() -> int:
             ensure_ascii=False,
             indent=2,
         )
-
         handle.write("\n")
 
     print("=== Summary ===")
