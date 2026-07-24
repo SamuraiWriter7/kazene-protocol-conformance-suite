@@ -1,0 +1,31 @@
+schema_version: "0.2.0"
+suite_id: kazene:conformance-suite:core-trace-authorization
+suite_name: Kazene Core Trace–Authorization Conformance Suite
+suite_version: "0.2.0"
+profile_ref: civilization-os-interoperability-profile@0.5.0
+
+stage_pair:
+  source_stage: trace
+  target_stage: authorization
+
+checks:
+  - check_id: trace_id_unique
+    description: Every supplied Trace record MUST expose a unique canonical Trace ID.
+    severity: error
+
+  - check_id: authorization_id_unique
+    description: Every Authorization record MUST expose a unique canonical Authorization ID.
+    severity: error
+
+  - check_id: authorization_trace_reference_exists
+    description: Both the request and receipt Trace references MUST resolve to supplied Trace records.
+    severity: error
+
+  - check_id: trace_binding_preserved
+    description: The Trace attached to the request MUST be the same Trace recorded in the Authorization receipt.
+    severity: error
+
+planned_checks:
+  - authorization_execution_scope_match
+  - audit_gate_before_royalty
+  - dispute_hold_before_settlement
