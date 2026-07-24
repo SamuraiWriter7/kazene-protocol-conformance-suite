@@ -1,0 +1,32 @@
+schema_version: "0.2.0"
+case_id: case:trace-authorization:duplicate-authorization-id
+case_type: trace_authorization_binding
+title: Duplicate Authorization IDs are rejected
+description: Two Authorization receipts expose the same canonical Authorization ID.
+expected_outcome: nonconformant
+
+trace_records:
+  - trace_id: kazene:trace:action-request-duplicate-001
+    event_type: action_request
+    recorded_at: "2026-07-24T01:30:00Z"
+
+authorization_records:
+  - authorization_id: kazene:authorization:duplicate-001
+    decision: authorized
+    request_trace_ref: kazene:trace:action-request-duplicate-001
+    receipt_trace_ref: kazene:trace:action-request-duplicate-001
+    action_ref: action://tool/invoke-001
+    decided_at: "2026-07-24T01:30:01Z"
+
+  - authorization_id: kazene:authorization:duplicate-001
+    decision: denied
+    request_trace_ref: kazene:trace:action-request-duplicate-001
+    receipt_trace_ref: kazene:trace:action-request-duplicate-001
+    action_ref: action://tool/invoke-002
+    decided_at: "2026-07-24T01:30:02Z"
+
+policy:
+  require_unique_trace_ids: true
+  require_unique_authorization_ids: true
+  require_registered_trace: true
+  require_preserved_trace_binding: true
