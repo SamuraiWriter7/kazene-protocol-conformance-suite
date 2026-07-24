@@ -18,7 +18,8 @@
       "type": "string",
       "enum": [
         "0.1.0",
-        "0.2.0"
+        "0.2.0",
+        "0.3.0"
       ]
     },
     "suite_id": {
@@ -32,7 +33,7 @@
     },
     "suite_version": {
       "type": "string",
-      "pattern": "^0\\.[12]\\.0$"
+      "pattern": "^0\\.[123]\\.0$"
     },
     "profile_ref": {
       "type": "string",
@@ -51,14 +52,16 @@
           "type": "string",
           "enum": [
             "origin",
-            "trace"
+            "trace",
+            "authorization"
           ]
         },
         "target_stage": {
           "type": "string",
           "enum": [
             "trace",
-            "authorization"
+            "authorization",
+            "execution"
           ]
         }
       }
