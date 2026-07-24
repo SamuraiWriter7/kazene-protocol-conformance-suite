@@ -1,0 +1,72 @@
+schema_version: "0.5.0"
+suite_id: kazene:conformance-suite:core-royalty-dispute-settlement
+suite_name: Kazene Core Royalty–Dispute–Settlement Integrity Suite
+suite_version: "0.5.0"
+profile_ref: civilization-os-interoperability-profile@0.5.0
+
+stage_pair:
+  source_stage: royalty
+  target_stage: settlement
+
+gate_stage: dispute_resolution
+
+checks:
+  - check_id: royalty_id_unique
+    description: Every supplied Royalty record MUST expose a unique canonical Royalty ID.
+    severity: error
+
+  - check_id: dispute_id_unique
+    description: Every Dispute record MUST expose a unique canonical Dispute ID.
+    severity: error
+
+  - check_id: holdback_id_unique
+    description: Every Holdback record MUST expose a unique canonical Holdback ID.
+    severity: error
+
+  - check_id: settlement_id_unique
+    description: Every Settlement record MUST expose a unique canonical Settlement ID.
+    severity: error
+
+  - check_id: dispute_royalty_reference_exists
+    description: Every Dispute MUST reference a registered Royalty.
+    severity: error
+
+  - check_id: holdback_dispute_reference_exists
+    description: Every Holdback MUST reference a registered Dispute.
+    severity: error
+
+  - check_id: holdback_royalty_reference_exists
+    description: Every Holdback MUST reference the same Royalty as its Dispute.
+    severity: error
+
+  - check_id: settlement_royalty_reference_exists
+    description: Every Settlement MUST reference a registered Royalty.
+    severity: error
+
+  - check_id: settlement_dispute_refs_complete
+    description: A Settlement MUST disclose all and only the Disputes attached to its Royalty.
+    severity: error
+
+  - check_id: unresolved_dispute_blocks_settlement
+    description: A Settlement MUST NOT become final while any related Dispute remains unresolved.
+    severity: error
+
+  - check_id: required_holdback_present
+    description: Every Holdback-required Dispute MUST have a sufficient compatible Holdback.
+    severity: error
+
+  - check_id: settlement_occurs_after_dispute_resolution
+    description: Final Settlement MUST begin after Royalty allocation and all related Dispute resolutions.
+    severity: error
+
+  - check_id: settlement_amount_conserved
+    description: Gross value MUST equal paid value plus currently reserved Holdback value.
+    severity: error
+
+  - check_id: royalty_status_allows_settlement
+    description: A final Settlement MUST reference a Royalty whose status is allocated.
+    severity: error
+
+planned_checks:
+  - external_fixture_adapter_conformance
+  - signed_end_to_end_conformance_certificate
