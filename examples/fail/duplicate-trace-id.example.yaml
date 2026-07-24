@@ -1,0 +1,32 @@
+schema_version: "0.1.0"
+case_id: case:origin-trace:duplicate-trace-id
+case_type: origin_trace_linkage
+title: Duplicate Trace IDs are rejected
+description: Two Trace records expose the same canonical Trace ID.
+expected_outcome: nonconformant
+
+origin_records:
+  - origin_id: kazene:origin:dataset-001
+    origin_type: dataset
+    status: active
+    source_ref: dataset://example/001
+    registered_at: "2026-07-24T00:00:00Z"
+
+trace_records:
+  - trace_id: kazene:trace:duplicate-001
+    event_type: ingestion
+    origin_refs:
+      - kazene:origin:dataset-001
+    recorded_at: "2026-07-24T00:00:01Z"
+
+  - trace_id: kazene:trace:duplicate-001
+    event_type: transformation
+    origin_refs:
+      - kazene:origin:dataset-001
+    recorded_at: "2026-07-24T00:00:02Z"
+
+policy:
+  require_unique_origin_ids: true
+  require_unique_trace_ids: true
+  require_registered_origin: true
+  require_active_origin: true
