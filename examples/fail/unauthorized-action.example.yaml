@@ -1,0 +1,57 @@
+schema_version: "0.3.0"
+case_id: case:authorization-execution:unauthorized-action
+case_type: authorization_execution_scope
+title: Execution performs a different action
+description: The authorization permits a read operation, but the execution performs a write operation.
+expected_outcome: nonconformant
+
+authorization_records:
+  - authorization_id: kazene:authorization:document-read-001
+    decision: authorized
+    trace_ref: kazene:trace:document-read-request-001
+    decided_at: "2026-07-24T02:20:00Z"
+
+    authorized_scope:
+      action: action://document/read
+      actors:
+        - agent://document/reader-001
+      tools:
+        - tool://document/content-api
+      resources:
+        - document://policy/001
+
+      cost_limit:
+        amount: 0.50
+        currency: USD
+
+      valid_from: "2026-07-24T02:20:00Z"
+      valid_until: "2026-07-24T02:25:00Z"
+
+execution_records:
+  - execution_id: kazene:execution:document-write-001
+    authorization_ref: kazene:authorization:document-read-001
+    execution_status: succeeded
+    started_at: "2026-07-24T02:21:00Z"
+    completed_at: "2026-07-24T02:21:01Z"
+
+    observed_action:
+      action: action://document/write
+      actor: agent://document/reader-001
+      tool: tool://document/content-api
+      resource: document://policy/001
+
+      cost:
+        amount: 0.10
+        currency: USD
+
+policy:
+  require_unique_authorization_ids: true
+  require_unique_execution_ids: true
+  require_registered_authorization: true
+  require_authorized_decision: true
+  require_action_match: true
+  require_actor_scope: true
+  require_tool_scope: true
+  require_resource_scope: true
+  require_cost_scope: true
+  require_time_scope: true
