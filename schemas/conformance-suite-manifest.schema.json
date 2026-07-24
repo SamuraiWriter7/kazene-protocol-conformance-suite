@@ -15,7 +15,11 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "type": "string",
+      "enum": [
+        "0.1.0",
+        "0.2.0"
+      ]
     },
     "suite_id": {
       "type": "string",
@@ -27,7 +31,8 @@
       "maxLength": 200
     },
     "suite_version": {
-      "const": "0.1.0"
+      "type": "string",
+      "pattern": "^0\\.[12]\\.0$"
     },
     "profile_ref": {
       "type": "string",
@@ -43,10 +48,18 @@
       ],
       "properties": {
         "source_stage": {
-          "const": "origin"
+          "type": "string",
+          "enum": [
+            "origin",
+            "trace"
+          ]
         },
         "target_stage": {
-          "const": "trace"
+          "type": "string",
+          "enum": [
+            "trace",
+            "authorization"
+          ]
         }
       }
     },
