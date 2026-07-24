@@ -1,0 +1,66 @@
+schema_version: "0.5.0"
+case_id: case:royalty-settlement:undisclosed-dispute
+case_type: royalty_dispute_settlement_integrity
+title: Settlement conceals a related Dispute
+description: A resolved Dispute exists for the Royalty but is omitted from the Settlement record.
+expected_outcome: nonconformant
+
+royalty_records:
+  - royalty_id: kazene:royalty:undisclosed-001
+    execution_ref: kazene:execution:undisclosed-001
+    audit_ref: kazene:audit:undisclosed-001
+    royalty_status: allocated
+
+    gross_amount:
+      amount: 80.00
+      currency: USD
+
+    allocated_at: "2026-07-24T05:30:00Z"
+
+dispute_records:
+  - dispute_id: kazene:dispute:undisclosed-001
+    royalty_ref: kazene:royalty:undisclosed-001
+    status: resolved
+    holdback_required: false
+    opened_at: "2026-07-24T05:30:01Z"
+    resolved_at: "2026-07-24T05:31:00Z"
+
+holdback_records: []
+
+settlement_records:
+  - settlement_id: kazene:settlement:undisclosed-001
+    royalty_ref: kazene:royalty:undisclosed-001
+    dispute_refs: []
+    holdback_refs: []
+    settlement_status: settled
+
+    gross_amount:
+      amount: 80.00
+      currency: USD
+
+    withheld_amount:
+      amount: 0.00
+      currency: USD
+
+    paid_amount:
+      amount: 80.00
+      currency: USD
+
+    initiated_at: "2026-07-24T05:31:01Z"
+    completed_at: "2026-07-24T05:31:02Z"
+
+policy:
+  require_unique_royalty_ids: true
+  require_unique_dispute_ids: true
+  require_unique_holdback_ids: true
+  require_unique_settlement_ids: true
+  require_registered_royalty_for_dispute: true
+  require_registered_dispute_for_holdback: true
+  require_registered_royalty_for_holdback: true
+  require_registered_royalty_for_settlement: true
+  require_complete_dispute_disclosure: true
+  require_unresolved_dispute_block: true
+  require_required_holdback: true
+  require_settlement_after_resolution: true
+  require_amount_conservation: true
+  require_settleable_royalty_status: true
