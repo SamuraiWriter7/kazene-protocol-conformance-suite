@@ -1,0 +1,26 @@
+schema_version: "0.1.0"
+case_id: case:origin-trace:revoked-origin
+case_type: origin_trace_linkage
+title: Trace references a revoked Origin
+description: The Origin exists, but its status is revoked while active status is required.
+expected_outcome: nonconformant
+
+origin_records:
+  - origin_id: kazene:origin:revoked-source-001
+    origin_type: document
+    status: revoked
+    source_ref: document://revoked/source-001
+    registered_at: "2026-07-24T00:00:00Z"
+
+trace_records:
+  - trace_id: kazene:trace:derivation-003
+    event_type: transformation
+    origin_refs:
+      - kazene:origin:revoked-source-001
+    recorded_at: "2026-07-24T00:00:01Z"
+
+policy:
+  require_unique_origin_ids: true
+  require_unique_trace_ids: true
+  require_registered_origin: true
+  require_active_origin: true
