@@ -1,0 +1,73 @@
+schema_version: "0.3.0"
+case_id: case:authorization-execution:duplicate-execution-id
+case_type: authorization_execution_scope
+title: Duplicate Execution IDs are rejected
+description: Two execution records expose the same canonical Execution ID.
+expected_outcome: nonconformant
+
+authorization_records:
+  - authorization_id: kazene:authorization:duplicate-execution-001
+    decision: authorized
+    trace_ref: kazene:trace:duplicate-execution-request-001
+    decided_at: "2026-07-24T03:10:00Z"
+
+    authorized_scope:
+      action: action://cache/read
+      actors:
+        - agent://cache/reader-001
+      tools:
+        - tool://cache/api
+      resources:
+        - cache://shared/001
+
+      cost_limit:
+        amount: 1.00
+        currency: USD
+
+      valid_from: "2026-07-24T03:10:00Z"
+      valid_until: "2026-07-24T03:15:00Z"
+
+execution_records:
+  - execution_id: kazene:execution:duplicate-001
+    authorization_ref: kazene:authorization:duplicate-execution-001
+    execution_status: succeeded
+    started_at: "2026-07-24T03:11:00Z"
+    completed_at: "2026-07-24T03:11:01Z"
+
+    observed_action:
+      action: action://cache/read
+      actor: agent://cache/reader-001
+      tool: tool://cache/api
+      resource: cache://shared/001
+
+      cost:
+        amount: 0.10
+        currency: USD
+
+  - execution_id: kazene:execution:duplicate-001
+    authorization_ref: kazene:authorization:duplicate-execution-001
+    execution_status: succeeded
+    started_at: "2026-07-24T03:12:00Z"
+    completed_at: "2026-07-24T03:12:01Z"
+
+    observed_action:
+      action: action://cache/read
+      actor: agent://cache/reader-001
+      tool: tool://cache/api
+      resource: cache://shared/001
+
+      cost:
+        amount: 0.10
+        currency: USD
+
+policy:
+  require_unique_authorization_ids: true
+  require_unique_execution_ids: true
+  require_registered_authorization: true
+  require_authorized_decision: true
+  require_action_match: true
+  require_actor_scope: true
+  require_tool_scope: true
+  require_resource_scope: true
+  require_cost_scope: true
+  require_time_scope: true
