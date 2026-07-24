@@ -20,7 +20,8 @@
         "0.1.0",
         "0.2.0",
         "0.3.0",
-        "0.4.0"
+        "0.4.0",
+        "0.5.0"
       ]
     },
     "suite_id": {
@@ -34,7 +35,7 @@
     },
     "suite_version": {
       "type": "string",
-      "pattern": "^0\\.[1234]\\.0$"
+      "pattern": "^0\\.[12345]\\.0$"
     },
     "profile_ref": {
       "type": "string",
@@ -55,7 +56,8 @@
             "origin",
             "trace",
             "authorization",
-            "execution"
+            "execution",
+            "royalty"
           ]
         },
         "target_stage": {
@@ -64,7 +66,8 @@
             "trace",
             "authorization",
             "execution",
-            "royalty"
+            "royalty",
+            "settlement"
           ]
         }
       }
@@ -72,7 +75,8 @@
     "gate_stage": {
       "type": "string",
       "enum": [
-        "audit"
+        "audit",
+        "dispute_resolution"
       ]
     },
     "checks": {
