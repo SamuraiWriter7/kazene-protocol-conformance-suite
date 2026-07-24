@@ -1,0 +1,32 @@
+schema_version: "0.1.0"
+suite_id: kazene:conformance-suite:core-origin-trace
+suite_name: Kazene Core Origin–Trace Conformance Suite
+suite_version: "0.1.0"
+profile_ref: civilization-os-interoperability-profile@0.5.0
+
+stage_pair:
+  source_stage: origin
+  target_stage: trace
+
+checks:
+  - check_id: origin_id_unique
+    description: Every Origin record MUST expose a unique canonical Origin ID.
+    severity: error
+
+  - check_id: trace_id_unique
+    description: Every Trace record MUST expose a unique canonical Trace ID.
+    severity: error
+
+  - check_id: origin_trace_reference_exists
+    description: Every Origin ID referenced by a Trace record MUST exist in the supplied Origin registry.
+    severity: error
+
+  - check_id: origin_status_active
+    description: Every Origin referenced by Trace MUST be active when the policy requires active origins.
+    severity: error
+
+planned_checks:
+  - trace_authorization_reference_exists
+  - authorization_execution_scope_match
+  - audit_gate_before_royalty
+  - dispute_hold_before_settlement
