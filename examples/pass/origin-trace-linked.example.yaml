@@ -1,0 +1,30 @@
+schema_version: "0.1.0"
+case_id: case:origin-trace:linked-basic
+case_type: origin_trace_linkage
+title: Active Origin is referenced by Trace
+description: A Trace record references one registered and active Origin record.
+expected_outcome: conformant
+
+origin_records:
+  - origin_id: kazene:origin:human-question-001
+    origin_type: human_input
+    status: active
+    source_ref: input://conversation/question-001
+    registered_at: "2026-07-24T00:00:00Z"
+
+trace_records:
+  - trace_id: kazene:trace:derivation-001
+    event_type: derivation
+    origin_refs:
+      - kazene:origin:human-question-001
+    recorded_at: "2026-07-24T00:00:01Z"
+    payload_ref: artifact://answer/derivation-001
+
+policy:
+  require_unique_origin_ids: true
+  require_unique_trace_ids: true
+  require_registered_origin: true
+  require_active_origin: true
+
+metadata:
+  scenario: minimal-pass
