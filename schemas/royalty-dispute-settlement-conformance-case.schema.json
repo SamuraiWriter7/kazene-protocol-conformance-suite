@@ -1,0 +1,529 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kazene.org/schemas/royalty-dispute-settlement-conformance-case.schema.json",
+  "title": "Royalty–Dispute–Settlement Integrity Conformance Case",
+  "description": "A cross-protocol conformance case for validating dispute disclosure, holdback enforcement, and final settlement integrity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "case_type",
+    "expected_outcome",
+    "royalty_records",
+    "dispute_records",
+    "holdback_records",
+    "settlement_records",
+    "policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.5.0"
+    },
+    "case_id": {
+      "type": "string",
+      "pattern": "^case:[a-z0-9][a-z0-9._:-]{2,127}$"
+    },
+    "case_type": {
+      "const": "royalty_dispute_settlement_integrity"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "expected_outcome": {
+      "type": "string",
+      "enum": [
+        "conformant",
+        "nonconformant"
+      ]
+    },
+    "royalty_records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/royalty_record"
+      }
+    },
+    "dispute_records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dispute_record"
+      }
+    },
+    "holdback_records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/holdback_record"
+      }
+    },
+    "settlement_records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/settlement_record"
+      }
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "integer",
+          "boolean",
+          "null"
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      }
+    },
+    "royalty_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "royalty_id",
+        "execution_ref",
+        "audit_ref",
+        "royalty_status",
+        "gross_amount",
+        "allocated_at"
+      ],
+      "properties": {
+        "royalty_id": {
+          "type": "string",
+          "pattern": "^kazene:royalty:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "execution_ref": {
+          "type": "string",
+          "pattern": "^kazene:execution:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "audit_ref": {
+          "type": "string",
+          "pattern": "^kazene:audit:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "royalty_status": {
+          "type": "string",
+          "enum": [
+            "eligible",
+            "allocated",
+            "blocked"
+          ]
+        },
+        "gross_amount": {
+          "$ref": "#/$defs/money"
+        },
+        "allocated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "dispute_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dispute_id",
+        "royalty_ref",
+        "status",
+        "holdback_required",
+        "opened_at"
+      ],
+      "properties": {
+        "dispute_id": {
+          "type": "string",
+          "pattern": "^kazene:dispute:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "royalty_ref": {
+          "type": "string",
+          "pattern": "^kazene:royalty:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "open",
+            "under_review",
+            "resolved",
+            "rejected",
+            "withdrawn"
+          ]
+        },
+        "holdback_required": {
+          "type": "boolean"
+        },
+        "holdback_amount": {
+          "$ref": "#/$defs/money"
+        },
+        "opened_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resolved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resolution_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "holdback_required": {
+                "const": true
+              }
+            },
+            "required": [
+              "holdback_required"
+            ]
+          },
+          "then": {
+            "required": [
+              "holdback_amount"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "resolved",
+                  "rejected",
+                  "withdrawn"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "resolved_at"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "open",
+                  "under_review"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "resolved_at"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "holdback_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "holdback_id",
+        "dispute_ref",
+        "royalty_ref",
+        "amount",
+        "status",
+        "reserved_at"
+      ],
+      "properties": {
+        "holdback_id": {
+          "type": "string",
+          "pattern": "^kazene:holdback:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "dispute_ref": {
+          "type": "string",
+          "pattern": "^kazene:dispute:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "royalty_ref": {
+          "type": "string",
+          "pattern": "^kazene:royalty:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "amount": {
+          "$ref": "#/$defs/money"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "reserved",
+            "released",
+            "forfeited"
+          ]
+        },
+        "reserved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "released_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "released",
+                  "forfeited"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "released_at"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "reserved"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "released_at"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "settlement_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "settlement_id",
+        "royalty_ref",
+        "dispute_refs",
+        "holdback_refs",
+        "settlement_status",
+        "gross_amount",
+        "withheld_amount",
+        "paid_amount",
+        "initiated_at"
+      ],
+      "properties": {
+        "settlement_id": {
+          "type": "string",
+          "pattern": "^kazene:settlement:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "royalty_ref": {
+          "type": "string",
+          "pattern": "^kazene:royalty:[a-z0-9][a-z0-9._-]{2,127}$"
+        },
+        "dispute_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^kazene:dispute:[a-z0-9][a-z0-9._-]{2,127}$"
+          }
+        },
+        "holdback_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^kazene:holdback:[a-z0-9][a-z0-9._-]{2,127}$"
+          }
+        },
+        "settlement_status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "settled",
+            "blocked"
+          ]
+        },
+        "gross_amount": {
+          "$ref": "#/$defs/money"
+        },
+        "withheld_amount": {
+          "$ref": "#/$defs/money"
+        },
+        "paid_amount": {
+          "$ref": "#/$defs/money"
+        },
+        "initiated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "beneficiary_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "settlement_status": {
+                "const": "settled"
+              }
+            },
+            "required": [
+              "settlement_status"
+            ]
+          },
+          "then": {
+            "required": [
+              "completed_at"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "settlement_status": {
+                "enum": [
+                  "pending",
+                  "blocked"
+                ]
+              }
+            },
+            "required": [
+              "settlement_status"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "completed_at"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "require_unique_royalty_ids",
+        "require_unique_dispute_ids",
+        "require_unique_holdback_ids",
+        "require_unique_settlement_ids",
+        "require_registered_royalty_for_dispute",
+        "require_registered_dispute_for_holdback",
+        "require_registered_royalty_for_holdback",
+        "require_registered_royalty_for_settlement",
+        "require_complete_dispute_disclosure",
+        "require_unresolved_dispute_block",
+        "require_required_holdback",
+        "require_settlement_after_resolution",
+        "require_amount_conservation",
+        "require_settleable_royalty_status"
+      ],
+      "properties": {
+        "require_unique_royalty_ids": {
+          "type": "boolean"
+        },
+        "require_unique_dispute_ids": {
+          "type": "boolean"
+        },
+        "require_unique_holdback_ids": {
+          "type": "boolean"
+        },
+        "require_unique_settlement_ids": {
+          "type": "boolean"
+        },
+        "require_registered_royalty_for_dispute": {
+          "type": "boolean"
+        },
+        "require_registered_dispute_for_holdback": {
+          "type": "boolean"
+        },
+        "require_registered_royalty_for_holdback": {
+          "type": "boolean"
+        },
+        "require_registered_royalty_for_settlement": {
+          "type": "boolean"
+        },
+        "require_complete_dispute_disclosure": {
+          "type": "boolean"
+        },
+        "require_unresolved_dispute_block": {
+          "type": "boolean"
+        },
+        "require_required_holdback": {
+          "type": "boolean"
+        },
+        "require_settlement_after_resolution": {
+          "type": "boolean"
+        },
+        "require_amount_conservation": {
+          "type": "boolean"
+        },
+        "require_settleable_royalty_status": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
