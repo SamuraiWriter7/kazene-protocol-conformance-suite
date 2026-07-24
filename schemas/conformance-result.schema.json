@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kazene.org/schemas/conformance-result.schema.json",
+  "title": "Kazene Protocol Conformance Result Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "suite_id",
+    "suite_version",
+    "generated_at",
+    "summary",
+    "results"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "suite_id": {
+      "type": "string"
+    },
+    "suite_version": {
+      "const": "0.1.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_cases",
+        "conformant_cases",
+        "nonconformant_cases",
+        "matched_expectations",
+        "mismatched_expectations"
+      ],
+      "properties": {
+        "total_cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "conformant_cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "nonconformant_cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "matched_expectations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mismatched_expectations": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "source_file",
+          "expected_outcome",
+          "actual_outcome",
+          "matched_expectation",
+          "check_results"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "source_file": {
+            "type": "string"
+          },
+          "expected_outcome": {
+            "type": "string",
+            "enum": [
+              "conformant",
+              "nonconformant"
+            ]
+          },
+          "actual_outcome": {
+            "type": "string",
+            "enum": [
+              "conformant",
+              "nonconformant"
+            ]
+          },
+          "matched_expectation": {
+            "type": "boolean"
+          },
+          "check_results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "check_id",
+                "status",
+                "message"
+              ],
+              "properties": {
+                "check_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "passed",
+                    "failed",
+                    "skipped"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
