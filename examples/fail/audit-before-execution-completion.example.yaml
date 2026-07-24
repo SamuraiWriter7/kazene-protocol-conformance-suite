@@ -1,0 +1,40 @@
+schema_version: "0.4.0"
+case_id: case:execution-audit-royalty:audit-before-execution
+case_type: execution_audit_royalty_gate
+title: Audit begins before Execution completion
+description: The Audit starts before the referenced Execution has completed.
+expected_outcome: nonconformant
+
+execution_records:
+  - execution_id: kazene:execution:not-complete-001
+    authorization_ref: kazene:authorization:not-complete-001
+    execution_status: succeeded
+    completed_at: "2026-07-24T04:50:10Z"
+
+audit_records:
+  - audit_id: kazene:audit:too-early-001
+    request_execution_ref: kazene:execution:not-complete-001
+    report_execution_ref: kazene:execution:not-complete-001
+    verdict: passed
+    started_at: "2026-07-24T04:50:05Z"
+    completed_at: "2026-07-24T04:50:12Z"
+
+royalty_records:
+  - royalty_id: kazene:royalty:after-early-audit-001
+    execution_ref: kazene:execution:not-complete-001
+    audit_ref: kazene:audit:too-early-001
+    royalty_status: eligible
+    initiated_at: "2026-07-24T04:50:13Z"
+
+policy:
+  require_unique_execution_ids: true
+  require_unique_audit_ids: true
+  require_unique_royalty_ids: true
+  require_registered_execution_for_audit: true
+  require_preserved_execution_binding: true
+  require_audit_after_execution: true
+  require_registered_execution_for_royalty: true
+  require_registered_audit_for_royalty: true
+  require_royalty_execution_match: true
+  require_passed_audit_before_royalty: true
+  require_royalty_after_audit: true
