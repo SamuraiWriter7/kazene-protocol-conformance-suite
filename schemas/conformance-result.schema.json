@@ -14,13 +14,13 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.4.0"
+      "const": "0.5.0"
     },
     "suite_id": {
       "const": "kazene:conformance-suite:core"
     },
     "suite_version": {
-      "const": "0.4.0"
+      "const": "0.5.0"
     },
     "generated_at": {
       "type": "string",
@@ -84,7 +84,8 @@
               "origin_trace_linkage",
               "trace_authorization_binding",
               "authorization_execution_scope",
-              "execution_audit_royalty_gate"
+              "execution_audit_royalty_gate",
+              "royalty_dispute_settlement_integrity"
             ]
           },
           "suite_id": {
