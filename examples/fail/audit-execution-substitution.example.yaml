@@ -1,0 +1,45 @@
+schema_version: "0.4.0"
+case_id: case:execution-audit-royalty:audit-substitution
+case_type: execution_audit_royalty_gate
+title: Audit report substitutes another Execution
+description: Both Execution IDs exist, but the Audit report records a different Execution than the one submitted.
+expected_outcome: nonconformant
+
+execution_records:
+  - execution_id: kazene:execution:original-001
+    authorization_ref: kazene:authorization:original-001
+    execution_status: succeeded
+    completed_at: "2026-07-24T04:10:00Z"
+
+  - execution_id: kazene:execution:substituted-002
+    authorization_ref: kazene:authorization:substituted-002
+    execution_status: succeeded
+    completed_at: "2026-07-24T04:10:01Z"
+
+audit_records:
+  - audit_id: kazene:audit:substitution-001
+    request_execution_ref: kazene:execution:original-001
+    report_execution_ref: kazene:execution:substituted-002
+    verdict: passed
+    started_at: "2026-07-24T04:10:02Z"
+    completed_at: "2026-07-24T04:10:05Z"
+
+royalty_records:
+  - royalty_id: kazene:royalty:substitution-001
+    execution_ref: kazene:execution:substituted-002
+    audit_ref: kazene:audit:substitution-001
+    royalty_status: eligible
+    initiated_at: "2026-07-24T04:10:06Z"
+
+policy:
+  require_unique_execution_ids: true
+  require_unique_audit_ids: true
+  require_unique_royalty_ids: true
+  require_registered_execution_for_audit: true
+  require_preserved_execution_binding: true
+  require_audit_after_execution: true
+  require_registered_execution_for_royalty: true
+  require_registered_audit_for_royalty: true
+  require_royalty_execution_match: true
+  require_passed_audit_before_royalty: true
+  require_royalty_after_audit: true
