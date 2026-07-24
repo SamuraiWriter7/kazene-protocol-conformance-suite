@@ -1,0 +1,69 @@
+schema_version: "0.5.0"
+case_id: case:royalty-settlement:before-resolution
+case_type: royalty_dispute_settlement_integrity
+title: Settlement begins before Dispute resolution
+description: The Dispute is ultimately resolved, but the Settlement begins one second before resolution.
+expected_outcome: nonconformant
+
+royalty_records:
+  - royalty_id: kazene:royalty:before-resolution-001
+    execution_ref: kazene:execution:before-resolution-001
+    audit_ref: kazene:audit:before-resolution-001
+    royalty_status: allocated
+
+    gross_amount:
+      amount: 100.00
+      currency: USD
+
+    allocated_at: "2026-07-24T06:00:00Z"
+
+dispute_records:
+  - dispute_id: kazene:dispute:before-resolution-001
+    royalty_ref: kazene:royalty:before-resolution-001
+    status: resolved
+    holdback_required: false
+    opened_at: "2026-07-24T06:00:01Z"
+    resolved_at: "2026-07-24T06:05:00Z"
+
+holdback_records: []
+
+settlement_records:
+  - settlement_id: kazene:settlement:before-resolution-001
+    royalty_ref: kazene:royalty:before-resolution-001
+
+    dispute_refs:
+      - kazene:dispute:before-resolution-001
+
+    holdback_refs: []
+    settlement_status: settled
+
+    gross_amount:
+      amount: 100.00
+      currency: USD
+
+    withheld_amount:
+      amount: 0.00
+      currency: USD
+
+    paid_amount:
+      amount: 100.00
+      currency: USD
+
+    initiated_at: "2026-07-24T06:04:59Z"
+    completed_at: "2026-07-24T06:05:01Z"
+
+policy:
+  require_unique_royalty_ids: true
+  require_unique_dispute_ids: true
+  require_unique_holdback_ids: true
+  require_unique_settlement_ids: true
+  require_registered_royalty_for_dispute: true
+  require_registered_dispute_for_holdback: true
+  require_registered_royalty_for_holdback: true
+  require_registered_royalty_for_settlement: true
+  require_complete_dispute_disclosure: true
+  require_unresolved_dispute_block: true
+  require_required_holdback: true
+  require_settlement_after_resolution: true
+  require_amount_conservation: true
+  require_settleable_royalty_status: true
