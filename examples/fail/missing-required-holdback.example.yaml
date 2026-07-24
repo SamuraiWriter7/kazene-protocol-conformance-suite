@@ -1,0 +1,72 @@
+schema_version: "0.5.0"
+case_id: case:royalty-settlement:missing-holdback
+case_type: royalty_dispute_settlement_integrity
+title: Required Holdback is absent
+description: An open Dispute requires a Holdback, but no Holdback record exists.
+expected_outcome: nonconformant
+
+royalty_records:
+  - royalty_id: kazene:royalty:missing-holdback-001
+    execution_ref: kazene:execution:missing-holdback-001
+    audit_ref: kazene:audit:missing-holdback-001
+    royalty_status: allocated
+
+    gross_amount:
+      amount: 100.00
+      currency: USD
+
+    allocated_at: "2026-07-24T05:40:00Z"
+
+dispute_records:
+  - dispute_id: kazene:dispute:missing-holdback-001
+    royalty_ref: kazene:royalty:missing-holdback-001
+    status: open
+    holdback_required: true
+
+    holdback_amount:
+      amount: 40.00
+      currency: USD
+
+    opened_at: "2026-07-24T05:40:01Z"
+
+holdback_records: []
+
+settlement_records:
+  - settlement_id: kazene:settlement:missing-holdback-001
+    royalty_ref: kazene:royalty:missing-holdback-001
+
+    dispute_refs:
+      - kazene:dispute:missing-holdback-001
+
+    holdback_refs: []
+    settlement_status: blocked
+
+    gross_amount:
+      amount: 100.00
+      currency: USD
+
+    withheld_amount:
+      amount: 0.00
+      currency: USD
+
+    paid_amount:
+      amount: 100.00
+      currency: USD
+
+    initiated_at: "2026-07-24T05:40:02Z"
+
+policy:
+  require_unique_royalty_ids: true
+  require_unique_dispute_ids: true
+  require_unique_holdback_ids: true
+  require_unique_settlement_ids: true
+  require_registered_royalty_for_dispute: true
+  require_registered_dispute_for_holdback: true
+  require_registered_royalty_for_holdback: true
+  require_registered_royalty_for_settlement: true
+  require_complete_dispute_disclosure: true
+  require_unresolved_dispute_block: true
+  require_required_holdback: true
+  require_settlement_after_resolution: true
+  require_amount_conservation: true
+  require_settleable_royalty_status: true
