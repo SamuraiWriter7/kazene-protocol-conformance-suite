@@ -1,0 +1,29 @@
+schema_version: "0.2.0"
+case_id: case:trace-authorization:trace-substitution
+case_type: trace_authorization_binding
+title: Authorization receipt substitutes another Trace
+description: Both Trace IDs exist, but the receipt binds the decision to a different Trace than the request.
+expected_outcome: nonconformant
+
+trace_records:
+  - trace_id: kazene:trace:original-request-001
+    event_type: action_request
+    recorded_at: "2026-07-24T01:20:00Z"
+
+  - trace_id: kazene:trace:substituted-request-002
+    event_type: action_request
+    recorded_at: "2026-07-24T01:20:01Z"
+
+authorization_records:
+  - authorization_id: kazene:authorization:substitution-001
+    decision: authorized
+    request_trace_ref: kazene:trace:original-request-001
+    receipt_trace_ref: kazene:trace:substituted-request-002
+    action_ref: action://payment/transfer-001
+    decided_at: "2026-07-24T01:20:02Z"
+
+policy:
+  require_unique_trace_ids: true
+  require_unique_authorization_ids: true
+  require_registered_trace: true
+  require_preserved_trace_binding: true
