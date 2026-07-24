@@ -1,0 +1,88 @@
+schema_version: "0.5.0"
+case_id: case:royalty-settlement:resolved-dispute
+case_type: royalty_dispute_settlement_integrity
+title: Settlement follows dispute resolution and holdback release
+description: A required Holdback is reserved, the Dispute is resolved, the Holdback is released, and Settlement then completes.
+expected_outcome: conformant
+
+royalty_records:
+  - royalty_id: kazene:royalty:article-002
+    execution_ref: kazene:execution:article-002
+    audit_ref: kazene:audit:article-002
+    royalty_status: allocated
+
+    gross_amount:
+      amount: 100.00
+      currency: USD
+
+    allocated_at: "2026-07-24T05:10:00Z"
+
+dispute_records:
+  - dispute_id: kazene:dispute:article-002
+    royalty_ref: kazene:royalty:article-002
+    status: resolved
+    holdback_required: true
+
+    holdback_amount:
+      amount: 40.00
+      currency: USD
+
+    opened_at: "2026-07-24T05:10:01Z"
+    resolved_at: "2026-07-24T05:15:00Z"
+    resolution_ref: resolution://article-002
+
+holdback_records:
+  - holdback_id: kazene:holdback:article-002
+    dispute_ref: kazene:dispute:article-002
+    royalty_ref: kazene:royalty:article-002
+
+    amount:
+      amount: 40.00
+      currency: USD
+
+    status: released
+    reserved_at: "2026-07-24T05:10:02Z"
+    released_at: "2026-07-24T05:15:01Z"
+
+settlement_records:
+  - settlement_id: kazene:settlement:article-002
+    royalty_ref: kazene:royalty:article-002
+
+    dispute_refs:
+      - kazene:dispute:article-002
+
+    holdback_refs:
+      - kazene:holdback:article-002
+
+    settlement_status: settled
+
+    gross_amount:
+      amount: 100.00
+      currency: USD
+
+    withheld_amount:
+      amount: 0.00
+      currency: USD
+
+    paid_amount:
+      amount: 100.00
+      currency: USD
+
+    initiated_at: "2026-07-24T05:15:02Z"
+    completed_at: "2026-07-24T05:15:03Z"
+
+policy:
+  require_unique_royalty_ids: true
+  require_unique_dispute_ids: true
+  require_unique_holdback_ids: true
+  require_unique_settlement_ids: true
+  require_registered_royalty_for_dispute: true
+  require_registered_dispute_for_holdback: true
+  require_registered_royalty_for_holdback: true
+  require_registered_royalty_for_settlement: true
+  require_complete_dispute_disclosure: true
+  require_unresolved_dispute_block: true
+  require_required_holdback: true
+  require_settlement_after_resolution: true
+  require_amount_conservation: true
+  require_settleable_royalty_status: true
