@@ -1,0 +1,25 @@
+schema_version: "0.2.0"
+case_id: case:trace-authorization:missing-trace
+case_type: trace_authorization_binding
+title: Authorization references an unknown Trace
+description: The request and receipt point to a Trace that is not supplied to the conformance case.
+expected_outcome: nonconformant
+
+trace_records:
+  - trace_id: kazene:trace:known-request-001
+    event_type: action_request
+    recorded_at: "2026-07-24T01:10:00Z"
+
+authorization_records:
+  - authorization_id: kazene:authorization:missing-trace-001
+    decision: denied
+    request_trace_ref: kazene:trace:missing-request-999
+    receipt_trace_ref: kazene:trace:missing-request-999
+    action_ref: action://filesystem/delete-001
+    decided_at: "2026-07-24T01:10:01Z"
+
+policy:
+  require_unique_trace_ids: true
+  require_unique_authorization_ids: true
+  require_registered_trace: true
+  require_preserved_trace_binding: true
