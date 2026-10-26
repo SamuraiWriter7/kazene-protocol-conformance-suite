@@ -1,0 +1,29 @@
+{
+  "version": "0.5.0",
+  "sources": [
+    {
+      "name": "authority-envelope",
+      "repo": "SamuraiWriter7/resilient-ai-safety-principles",
+      "commit": "9f5dfb417aec1d7e5d8659b632419cba442074d4",
+      "source_path": "schemas/authority-envelope.schema.json",
+      "snapshot_path": "windmill-full-record-v0.3/schemas/authority-envelope.schema.json",
+      "blob_sha": "a60ee4466f07eb29a66fb27f3ab68b6bd5375bb4"
+    },
+    {
+      "name": "recovery-receipt",
+      "repo": "SamuraiWriter7/resilient-ai-safety-principles",
+      "commit": "9f5dfb417aec1d7e5d8659b632419cba442074d4",
+      "source_path": "schemas/recovery-receipt.schema.json",
+      "snapshot_path": "windmill-full-record-v0.3/schemas/recovery-receipt.schema.json",
+      "blob_sha": "92efd3dcb580a93154c1758b45a027613037de3a"
+    },
+    {
+      "name": "action-authorization-receipt",
+      "repo": "SamuraiWriter7/agent-action-authorization-receipt-protocol",
+      "commit": "50550fe32b5fd35e928174d010d3f30b7d4b0b17",
+      "source_path": "schemas/action-authorization-receipt.schema.json",
+      "snapshot_path": "windmill-full-record-v0.3/schemas/action-authorization-receipt.schema.json",
+      "blob_sha": "a6b03a40744bd42e6889e93f4248bb63b0fde51c"
+    }
+  ]
+}

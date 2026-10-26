@@ -1,0 +1,41 @@
+name: Windmill Upstream Pin Audit v0.5
+"on":
+  push:
+    paths:
+      - "windmill-upstream-pin-v0.5/**"
+      - "windmill-full-record-v0.3/schemas/**"
+      - ".github/workflows/windmill-upstream-pin-v0.5.yml"
+  pull_request:
+    paths:
+      - "windmill-upstream-pin-v0.5/**"
+      - "windmill-full-record-v0.3/schemas/**"
+      - ".github/workflows/windmill-upstream-pin-v0.5.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/checkout@v4
+        with:
+          repository: SamuraiWriter7/resilient-ai-safety-principles
+          ref: 9f5dfb417aec1d7e5d8659b632419cba442074d4
+          path: external/resilient-ai-safety-principles
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: SamuraiWriter7/agent-action-authorization-receipt-protocol
+          ref: 50550fe32b5fd35e928174d010d3f30b7d4b0b17
+          path: external/agent-action-authorization-receipt-protocol
+          persist-credentials: false
+      - run: python windmill-upstream-pin-v0.5/scripts/verify.py --upstream-root external
