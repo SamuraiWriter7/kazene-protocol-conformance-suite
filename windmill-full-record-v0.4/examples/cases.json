@@ -121,7 +121,20 @@
           "prohibited_actions": [],
           "execution_count": 1
         },
-        "policy_bindings": [],
+        "policy_bindings": [
+          {
+            "policy_id": "windmill-policy",
+            "policy_version": "0.4.0",
+            "rule_id": "swap-gate",
+            "result": "allow",
+            "enforcement": "applied",
+            "evaluated_by": "safety-gate",
+            "evaluated_at": "2026-10-26T00:00:00Z",
+            "evidence_refs": [
+              "verify-001"
+            ]
+          }
+        ],
         "human_review": {
           "required": false,
           "status": "not_required",
@@ -157,70 +170,80 @@
     {
       "id": "pass-full-records",
       "changes": {},
-      "expected": "PASS"
+      "expected": "PASS",
+      "expected_rule": null
     },
     {
       "id": "fail-trace-mismatch",
       "changes": {
         "records.recovery-receipt.trace_reference": "trace-002"
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "trace_mismatch"
     },
     {
       "id": "fail-authorization-id",
       "changes": {
         "event.authorization_id": "auth-002"
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "authorization_mismatch"
     },
     {
       "id": "fail-envelope-mismatch",
       "changes": {
         "records.recovery-receipt.authority_outcome.new_authority_reference": "env-002"
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "recovery_authority_mismatch"
     },
     {
       "id": "fail-denied-operation",
       "changes": {
         "records.action-authorization-receipt.decision": "denied"
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "denied_execution"
     },
     {
       "id": "fail-unverified-recovery",
       "changes": {
         "records.recovery-receipt.verification.verification_result": "INCONCLUSIVE"
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "schema:recovery-receipt"
     },
     {
       "id": "fail-schema-missing",
       "changes": {
         "records.authority-envelope.permissions": null
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "schema:authority-envelope"
     },
     {
       "id": "fail-self-approved",
       "changes": {
         "records.authority-envelope.approval.independent_from_subject": false
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "schema:authority-envelope"
     },
     {
       "id": "fail-revoked-envelope",
       "changes": {
         "records.authority-envelope.status": "REVOKED"
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "inactive_envelope"
     },
     {
       "id": "fail-extra-property",
       "changes": {
         "records.recovery-receipt.invalid_extra": true
       },
-      "expected": "FAIL"
+      "expected": "FAIL",
+      "expected_rule": "schema:recovery-receipt"
     }
   ]
 }
