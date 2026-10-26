@@ -1,0 +1,23 @@
+name: Windmill Schema Binding Adapter v0.2
+on:
+  push:
+    paths: ["windmill-schema-bindings-v0.2/**", ".github/workflows/windmill-schema-bindings-v0.2.yml"]
+  pull_request:
+    paths: ["windmill-schema-bindings-v0.2/**", ".github/workflows/windmill-schema-bindings-v0.2.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10","3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python windmill-schema-bindings-v0.2/scripts/validate.py
