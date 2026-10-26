@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/resilient-ai-safety-principles/schemas/recovery-receipt.schema.json",
+  "title": "Recovery Receipt",
+  "description": "Machine-readable recovery record for Resilient AI Safety Principles v0.2.",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "recovery_receipt_id",
+    "subject",
+    "source_state",
+    "recovery_action",
+    "verification",
+    "authority_outcome",
+    "final_state",
+    "recovered_at",
+    "trace_reference"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.2.0"
+    },
+
+    "recovery_receipt_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+
+    "subject": {
+      "$ref": "#/$defs/subject"
+    },
+
+    "source_state": {
+      "$ref": "#/$defs/sourceState"
+    },
+
+    "recovery_action": {
+      "$ref": "#/$defs/recoveryAction"
+    },
+
+    "verification": {
+      "$ref": "#/$defs/verification"
+    },
+
+    "authority_outcome": {
+      "$ref": "#/$defs/authorityOutcome"
+    },
+
+    "successor": {
+      "$ref": "#/$defs/successor"
+    },
+
+    "unresolved_blockers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+
+    "final_state": {
+      "type": "string",
+      "enum": [
+        "REAUTHORIZED",
+        "RESTRICTED",
+        "ISOLATED",
+        "TRANSFERRED",
+        "TERMINATED",
+        "COMPLETED"
+      ]
+    },
+
+    "recovered_at": {
+      "$ref": "#/$defs/dateTime"
+    },
+
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "trace_reference": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+
+  "$defs": {
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_id",
+        "subject_type"
+      ],
+      "properties": {
+        "subject_id": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "subject_type": {
+          "type": "string",
+          "enum": [
+            "OPERATION",
+            "AI_AGENT",
+            "AI_MODEL",
+            "SERVICE",
+            "NODE",
+            "PROCESS",
+            "AUTHORITY_DOMAIN",
+            "OTHER"
+          ]
+        },
+
+        "domain": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+
+    "sourceState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "source_reference"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "HELD",
+            "QUARANTINED",
+            "RESTRICTED",
+            "ISOLATED",
+            "FAILED",
+            "REVOKED",
+            "EXPIRED"
+          ]
+        },
+
+        "source_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "containment_receipt_reference": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+
+        "failure_reference": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      }
+    },
+
+    "recoveryAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_type",
+        "performed_by"
+      ],
+      "properties": {
+        "action_type": {
+          "type": "string",
+          "enum": [
+            "REPAIR",
+            "REPLACE",
+            "RECONFIGURE",
+            "REAUTHORIZE",
+            "RESTRICT",
+            "ISOLATE",
+            "TRANSFER",
+            "TERMINATE",
+            "COMPLETE_WITHOUT_RESUME",
+            "OTHER"
+          ]
+        },
+
+        "performed_by": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "performed_at": {
+          "$ref": "#/$defs/dateTime"
+        },
+
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "repair_reference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verification_reference",
+        "verification_result",
+        "independent"
+      ],
+      "properties": {
+        "verification_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "verification_result": {
+          "type": "string",
+          "enum": [
+            "VERIFIED_SAFE",
+            "VERIFIED_UNSAFE",
+            "INCONCLUSIVE",
+            "INSUFFICIENT_EVIDENCE",
+            "STALE_EVIDENCE"
+          ]
+        },
+
+        "independent": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "authorityOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previous_authority_restored",
+        "new_authority_required"
+      ],
+      "properties": {
+        "previous_authority_reference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+
+        "previous_authority_restored": {
+          "type": "boolean"
+        },
+
+        "new_authority_required": {
+          "type": "boolean"
+        },
+
+        "new_authority_reference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+
+        "authority_reduced": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "successor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "successor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "successor_type": {
+          "type": "string",
+          "enum": [
+            "OPERATION",
+            "AI_AGENT",
+            "SERVICE",
+            "NODE",
+            "PROCESS",
+            "OTHER"
+          ]
+        },
+
+        "inherits_blockers": {
+          "type": "boolean"
+        },
+
+        "inherits_authority": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocker_id",
+        "description"
+      ],
+      "properties": {
+        "blocker_id": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+
+        "carried_forward": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "dateTime": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "final_state": {
+            "const": "REAUTHORIZED"
+          }
+        },
+        "required": [
+          "final_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "verification_result": {
+                "const": "VERIFIED_SAFE"
+              },
+              "independent": {
+                "const": true
+              }
+            },
+            "required": [
+              "verification_result",
+              "independent"
+            ]
+          },
+
+          "authority_outcome": {
+            "properties": {
+              "previous_authority_restored": {
+                "const": false
+              },
+              "new_authority_required": {
+                "const": true
+              }
+            },
+            "required": [
+              "previous_authority_restored",
+              "new_authority_required"
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "if": {
+        "properties": {
+          "authority_outcome": {
+            "properties": {
+              "new_authority_required": {
+                "const": true
+              }
+            },
+            "required": [
+              "new_authority_required"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "authority_outcome": {
+            "required": [
+              "new_authority_reference"
+            ],
+            "properties": {
+              "new_authority_reference": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+
+    {
+      "if": {
+        "properties": {
+          "final_state": {
+            "enum": [
+              "TERMINATED",
+              "COMPLETED"
+            ]
+          }
+        },
+        "required": [
+          "final_state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "authority_outcome": {
+            "properties": {
+              "previous_authority_restored": {
+                "const": false
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
