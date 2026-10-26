@@ -1,0 +1,571 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:kazene:agent-action-authorization-receipt-protocol:action-authorization-receipt:0.3.0",
+  "title": "Action Authorization Receipt",
+  "description": "A vendor-neutral receipt recording the decision, scope, constraints, policy basis, human review, risk assessment, and lineage governing an AI agent action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authorization_id",
+    "request_id",
+    "agent_id",
+    "requested_action",
+    "decision",
+    "decision_reason",
+    "authorized_by",
+    "authorized_scope",
+    "constraints",
+    "policy_bindings",
+    "human_review",
+    "risk_assessment",
+    "context_bindings",
+    "issued_at",
+    "expires_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.3.0"
+    },
+    "authorization_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "request_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "agent_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "requested_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_type",
+        "summary"
+      ],
+      "properties": {
+        "action_type": {
+          "$ref": "#/$defs/action_type"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "tool_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "target_type": {
+          "$ref": "#/$defs/identifier"
+        },
+        "target_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "destination_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "data_classes": {
+          "$ref": "#/$defs/identifier_array"
+        },
+        "estimated_cost": {
+          "$ref": "#/$defs/money"
+        },
+        "estimated_duration_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "parameters_digest": {
+          "type": "string",
+          "pattern": "^sha256:[A-Fa-f0-9]{64}$"
+        }
+      },
+      "dependentRequired": {
+        "target_type": [
+          "target_id"
+        ],
+        "target_id": [
+          "target_type"
+        ]
+      }
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "authorized",
+        "conditionally_authorized",
+        "human_review_required",
+        "deferred",
+        "denied",
+        "revoked"
+      ]
+    },
+    "decision_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "summary",
+        "evidence_refs"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/identifier"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/reference_array"
+        }
+      }
+    },
+    "authorized_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_type",
+        "actor_id",
+        "authority_basis"
+      ],
+      "properties": {
+        "actor_type": {
+          "type": "string",
+          "enum": [
+            "human",
+            "policy_engine",
+            "delegated_agent",
+            "system"
+          ]
+        },
+        "actor_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "authority_basis": {
+          "$ref": "#/$defs/reference"
+        },
+        "delegation_id": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "actor_type": {
+                "const": "delegated_agent"
+              }
+            },
+            "required": [
+              "actor_type"
+            ]
+          },
+          "then": {
+            "required": [
+              "delegation_id"
+            ]
+          }
+        }
+      ]
+    },
+    "authorized_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tools",
+        "resources",
+        "operations",
+        "data_classes"
+      ],
+      "properties": {
+        "tools": {
+          "$ref": "#/$defs/identifier_array"
+        },
+        "resources": {
+          "$ref": "#/$defs/identifier_array"
+        },
+        "operations": {
+          "$ref": "#/$defs/action_type_array"
+        },
+        "data_classes": {
+          "$ref": "#/$defs/identifier_array"
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "maximum_cost",
+        "maximum_duration_seconds",
+        "allowed_destinations",
+        "prohibited_actions",
+        "execution_count"
+      ],
+      "properties": {
+        "maximum_cost": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/money"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maximum_duration_seconds": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allowed_destinations": {
+          "$ref": "#/$defs/identifier_array"
+        },
+        "prohibited_actions": {
+          "$ref": "#/$defs/action_type_array"
+        },
+        "execution_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "policy_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/policy_binding"
+      }
+    },
+    "human_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "status",
+        "review_id",
+        "reviewer_id",
+        "reviewed_at",
+        "rationale",
+        "evidence_refs"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "pending",
+            "approved",
+            "rejected",
+            "expired"
+          ]
+        },
+        "review_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewer_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reviewed_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rationale": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/reference_array"
+        }
+      }
+    },
+    "risk_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assessment_id",
+        "assessed_by",
+        "assessed_at",
+        "risk_level",
+        "score",
+        "categories",
+        "mitigations",
+        "residual_risk_level"
+      ],
+      "properties": {
+        "assessment_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "assessed_by": {
+          "$ref": "#/$defs/identifier"
+        },
+        "assessed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "risk_level": {
+          "$ref": "#/$defs/risk_level"
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "categories": {
+          "$ref": "#/$defs/identifier_array"
+        },
+        "mitigations": {
+          "$ref": "#/$defs/identifier_array"
+        },
+        "residual_risk_level": {
+          "$ref": "#/$defs/risk_level"
+        }
+      }
+    },
+    "context_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_reference",
+        "trace_reference",
+        "precedence_reference",
+        "human_axis_reference",
+        "handoff_reference"
+      ],
+      "properties": {
+        "origin_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "trace_reference": {
+          "$ref": "#/$defs/reference"
+        },
+        "precedence_reference": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/reference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "human_axis_reference": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/reference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "handoff_reference": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/reference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "reference": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$"
+    },
+    "action_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "currency",
+        "amount"
+      ],
+      "properties": {
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "amount": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{1,6})?$"
+        }
+      }
+    },
+    "identifier_array": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/identifier"
+      }
+    },
+    "action_type_array": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/action_type"
+      }
+    },
+    "reference_array": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/reference"
+      }
+    },
+    "version_identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": [
+        "negligible",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "policy_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_id",
+        "policy_version",
+        "rule_id",
+        "result",
+        "enforcement",
+        "evaluated_by",
+        "evaluated_at",
+        "evidence_refs"
+      ],
+      "properties": {
+        "policy_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "policy_version": {
+          "$ref": "#/$defs/version_identifier"
+        },
+        "rule_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "result": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "deny",
+            "require_human_review",
+            "constrain",
+            "no_effect"
+          ]
+        },
+        "enforcement": {
+          "type": "string",
+          "enum": [
+            "applied",
+            "overridden",
+            "advisory"
+          ]
+        },
+        "evaluated_by": {
+          "$ref": "#/$defs/identifier"
+        },
+        "evaluated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "override_authority_ref": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/reference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_refs": {
+          "$ref": "#/$defs/reference_array"
+        }
+      }
+    }
+  }
+}
