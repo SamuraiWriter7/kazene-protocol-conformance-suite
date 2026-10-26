@@ -1,0 +1,249 @@
+{
+  "version": "0.4.0",
+  "defaults": {
+    "event": {
+      "trace_id": "trace-001",
+      "authorization_id": "auth-001",
+      "authority_envelope_id": "env-001",
+      "mode": "D",
+      "blade_id": "blade-b"
+    },
+    "records": {
+      "authority-envelope": {
+        "schema_version": "0.2.0",
+        "authority_envelope_id": "env-001",
+        "subject": {
+          "subject_id": "blade-b",
+          "subject_type": "AI_AGENT"
+        },
+        "permissions": {
+          "actions": [
+            "replace_blade"
+          ],
+          "targets": [
+            {
+              "target_id": "blade-b",
+              "target_type": "blade"
+            }
+          ],
+          "scope": {
+            "domain": "sandbox"
+          }
+        },
+        "validity": {
+          "valid_from": "2026-10-26T00:00:00Z",
+          "valid_until": "2026-10-27T00:00:00Z",
+          "renewable": false
+        },
+        "limits": {
+          "max_operations": 1
+        },
+        "delegation": {
+          "allowed": false
+        },
+        "issuer": {
+          "issuer_id": "safety-gate",
+          "issuer_type": "POLICY_ENGINE"
+        },
+        "approval": {
+          "approval_id": "approval-001",
+          "approved_by": "safety-gate",
+          "independent_from_subject": true,
+          "approved_at": "2026-10-26T00:00:00Z"
+        },
+        "status": "ACTIVE",
+        "trace_reference": "trace-001",
+        "issued_at": "2026-10-26T00:00:00Z"
+      },
+      "recovery-receipt": {
+        "schema_version": "0.2.0",
+        "recovery_receipt_id": "recovery-001",
+        "subject": {
+          "subject_id": "blade-b",
+          "subject_type": "AI_AGENT"
+        },
+        "source_state": {
+          "state": "ISOLATED",
+          "source_reference": "incident-001"
+        },
+        "recovery_action": {
+          "action_type": "REPLACE",
+          "performed_by": "authorized-operator"
+        },
+        "verification": {
+          "verification_reference": "verify-001",
+          "verification_result": "VERIFIED_SAFE",
+          "independent": true
+        },
+        "authority_outcome": {
+          "previous_authority_restored": false,
+          "new_authority_required": true,
+          "new_authority_reference": "env-001"
+        },
+        "final_state": "REAUTHORIZED",
+        "recovered_at": "2026-10-26T00:00:00Z",
+        "trace_reference": "trace-001"
+      },
+      "action-authorization-receipt": {
+        "schema_version": "0.3.0",
+        "authorization_id": "auth-001",
+        "request_id": "request-001",
+        "agent_id": "operator-001",
+        "requested_action": {
+          "action_type": "replace_blade",
+          "summary": "Replace faulty blade in sandbox"
+        },
+        "decision": "authorized",
+        "decision_reason": {
+          "code": "policy-allow",
+          "summary": "Independent gate verified replacement",
+          "evidence_refs": [
+            "verify-001"
+          ]
+        },
+        "authorized_by": {
+          "actor_type": "policy_engine",
+          "actor_id": "safety-gate",
+          "authority_basis": "policy-windmill"
+        },
+        "authorized_scope": {
+          "tools": [],
+          "resources": [],
+          "operations": [
+            "replace_blade"
+          ],
+          "data_classes": []
+        },
+        "constraints": {
+          "maximum_cost": null,
+          "maximum_duration_seconds": 60,
+          "allowed_destinations": [],
+          "prohibited_actions": [],
+          "execution_count": 1
+        },
+        "policy_bindings": [
+          {
+            "policy_id": "windmill-policy",
+            "policy_version": "0.4.0",
+            "rule_id": "swap-gate",
+            "result": "allow",
+            "enforcement": "applied",
+            "evaluated_by": "safety-gate",
+            "evaluated_at": "2026-10-26T00:00:00Z",
+            "evidence_refs": [
+              "verify-001"
+            ]
+          }
+        ],
+        "human_review": {
+          "required": false,
+          "status": "not_required",
+          "review_id": null,
+          "reviewer_id": null,
+          "reviewed_at": null,
+          "rationale": null,
+          "evidence_refs": []
+        },
+        "risk_assessment": {
+          "assessment_id": "risk-001",
+          "assessed_by": "safety-gate",
+          "assessed_at": "2026-10-26T00:00:00Z",
+          "risk_level": "low",
+          "score": 10,
+          "categories": [],
+          "mitigations": [],
+          "residual_risk_level": "low"
+        },
+        "context_bindings": {
+          "origin_reference": "origin-001",
+          "trace_reference": "trace-001",
+          "precedence_reference": null,
+          "human_axis_reference": null,
+          "handoff_reference": null
+        },
+        "issued_at": "2026-10-26T00:00:00Z",
+        "expires_at": "2026-10-27T00:00:00Z"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "pass-full-records",
+      "changes": {},
+      "expected": "PASS",
+      "expected_rule": null
+    },
+    {
+      "id": "fail-trace-mismatch",
+      "changes": {
+        "records.recovery-receipt.trace_reference": "trace-002"
+      },
+      "expected": "FAIL",
+      "expected_rule": "trace_mismatch"
+    },
+    {
+      "id": "fail-authorization-id",
+      "changes": {
+        "event.authorization_id": "auth-002"
+      },
+      "expected": "FAIL",
+      "expected_rule": "authorization_mismatch"
+    },
+    {
+      "id": "fail-envelope-mismatch",
+      "changes": {
+        "records.recovery-receipt.authority_outcome.new_authority_reference": "env-002"
+      },
+      "expected": "FAIL",
+      "expected_rule": "recovery_authority_mismatch"
+    },
+    {
+      "id": "fail-denied-operation",
+      "changes": {
+        "records.action-authorization-receipt.decision": "denied"
+      },
+      "expected": "FAIL",
+      "expected_rule": "denied_execution"
+    },
+    {
+      "id": "fail-unverified-recovery",
+      "changes": {
+        "records.recovery-receipt.verification.verification_result": "INCONCLUSIVE"
+      },
+      "expected": "FAIL",
+      "expected_rule": "schema:recovery-receipt"
+    },
+    {
+      "id": "fail-schema-missing",
+      "changes": {
+        "records.authority-envelope.permissions": null
+      },
+      "expected": "FAIL",
+      "expected_rule": "schema:authority-envelope"
+    },
+    {
+      "id": "fail-self-approved",
+      "changes": {
+        "records.authority-envelope.approval.independent_from_subject": false
+      },
+      "expected": "FAIL",
+      "expected_rule": "schema:authority-envelope"
+    },
+    {
+      "id": "fail-revoked-envelope",
+      "changes": {
+        "records.authority-envelope.status": "REVOKED"
+      },
+      "expected": "FAIL",
+      "expected_rule": "inactive_envelope"
+    },
+    {
+      "id": "fail-extra-property",
+      "changes": {
+        "records.recovery-receipt.invalid_extra": true
+      },
+      "expected": "FAIL",
+      "expected_rule": "schema:recovery-receipt"
+    }
+  ]
+}
