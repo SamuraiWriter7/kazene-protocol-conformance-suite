@@ -1,0 +1,145 @@
+{
+  "profile": "windmill-four-repo-audit-0.1",
+  "fixtures": "synthetic projections, not live cross-repository data",
+  "defaults": {
+    "event_id": "swap-001",
+    "origin_id": "origin-1",
+    "trace_id": "trace-1",
+    "blade_id": "blade-b",
+    "old_blade_id": "blade-a",
+    "authorization_id": "auth-1",
+    "safety_authorization_id": "auth-1",
+    "conformance_authorization_id": "auth-1",
+    "safety_trace_id": "trace-1",
+    "conformance_trace_id": "trace-1",
+    "mode": "D",
+    "safety_mode": "D",
+    "authorization_mode": "D",
+    "recovery_state": "approved",
+    "safety_recovery_state": "approved",
+    "authorization_recovery_state": "approved",
+    "old_lease_fenced": true,
+    "signature_ok": true,
+    "independent_approval": true,
+    "post_swap_health": true,
+    "attack_source_authorized": false
+  },
+  "cases": [
+    {
+      "id": "pass-consistent",
+      "changes": {},
+      "expected": "PASS"
+    },
+    {
+      "id": "pass-safe-hold",
+      "changes": {
+        "mode": "N",
+        "safety_mode": "N",
+        "authorization_mode": "N",
+        "recovery_state": "held",
+        "safety_recovery_state": "held",
+        "authorization_recovery_state": "held",
+        "post_swap_health": false
+      },
+      "expected": "PASS"
+    },
+    {
+      "id": "fail-trace-safety",
+      "changes": {
+        "safety_trace_id": "trace-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-trace-conformance",
+      "changes": {
+        "conformance_trace_id": "trace-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-authorization-safety",
+      "changes": {
+        "safety_authorization_id": "auth-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-authorization-conformance",
+      "changes": {
+        "conformance_authorization_id": "auth-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-mode-safety",
+      "changes": {
+        "safety_mode": "N"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-mode-authorization",
+      "changes": {
+        "authorization_mode": "P"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-recovery-safety",
+      "changes": {
+        "safety_recovery_state": "held"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-recovery-authorization",
+      "changes": {
+        "authorization_recovery_state": "denied"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-lease-not-fenced",
+      "changes": {
+        "old_lease_fenced": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-no-independent-approval",
+      "changes": {
+        "independent_approval": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-unsigned-blade",
+      "changes": {
+        "signature_ok": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-unhealthy-active-blade",
+      "changes": {
+        "post_swap_health": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-attacker-authorized",
+      "changes": {
+        "attack_source_authorized": true
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-missing-event",
+      "changes": {
+        "event_id": ""
+      },
+      "expected": "FAIL"
+    }
+  ]
+}

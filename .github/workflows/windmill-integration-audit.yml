@@ -1,0 +1,27 @@
+name: Windmill Four-Repo Integration Audit
+on:
+  push:
+    paths:
+      - "windmill-integration-audit/**"
+      - ".github/workflows/windmill-integration-audit.yml"
+  pull_request:
+    paths:
+      - "windmill-integration-audit/**"
+      - ".github/workflows/windmill-integration-audit.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python windmill-integration-audit/scripts/validate.py
