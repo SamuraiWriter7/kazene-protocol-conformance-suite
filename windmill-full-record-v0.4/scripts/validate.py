@@ -51,7 +51,7 @@ def main():
         for key,value in c["changes"].items(): mutate(event,key,value)
         errors=audit(event)
         actual="FAIL" if errors else "PASS"
-        is_match=actual==c["expected"]
+        is_match=(actual==c["expected"] and (c.get("expected_rule") is None and not errors or c.get("expected_rule") in errors))
         print(f"{'MATCH' if is_match else 'MISMATCH'} {c['id']} expected={c['expected']} actual={actual} rules={','.join(errors) or '-'}")
         matches+=is_match
     print(f"Matched {matches}/{len(fixture['cases'])}")
