@@ -2,6 +2,10 @@
 
 Cross-protocol conformance tests for validating end-to-end integrity across the Kazene Civilization OS.
 
+## Windmill integration validation
+
+The Windmill extensions are indexed in [WINDMILL_VALIDATION_INDEX.md](WINDMILL_VALIDATION_INDEX.md). The index lists v0.6 cross-protocol rules, v0.1–v0.5 additive integration checks, how to rerun validation, and explicit limitations. These are **experimental conformance checks**, not production security certification or a new repository-wide release.
+
 ## Overview
 
 A protocol record can be structurally valid while the complete protocol chain remains invalid.
