@@ -6,6 +6,22 @@ The project follows semantic versioning during its protocol-development lifecycl
 
 ---
 
+## Windmill Extensions — 2026-10-26 (unreleased integration record)
+
+These are additive, separately versioned profiles. The last documented core suite release remains `v0.5.0`. This entry does not represent a repository-wide tagged release.
+
+### Added
+- `windmill-v0.6/`: synthetic D/R/N/P cross-protocol conformance.
+- `windmill-integration-audit/`: normalized four-repository synthetic event correlation (v0.1).
+- `windmill-schema-bindings-v0.2/`: strict source field-name linkage.
+- `windmill-full-record-v0.3/`: pinned actual upstream JSON Schema gate.
+- `windmill-full-record-v0.4/`: complete constructed records with schema and reference checks, including explicit failure reasons.
+- `windmill-upstream-pin-v0.5/`: immutable upstream commit and Git blob verification.
+- `WINDMILL_VALIDATION_INDEX.md`: consolidated commands, sources and limitations.
+
+### Not yet validated
+Live cross-repository interchange, independently signed receipts, real-world attack containment, runtime blade replacement and a canonical blade-swap event schema.
+
 ## [0.5.0] - 2026-07-24
 
 ### Added
