@@ -1,0 +1,189 @@
+{
+  "version": "0.6.0",
+  "note": "Synthetic cross-protocol fixtures; negative cases must fail validation",
+  "defaults": {
+    "mode": "D",
+    "pressure": 40,
+    "origin_id": "origin-0",
+    "trace_id": "trace-1",
+    "linked_trace_id": "trace-1",
+    "trace_parent": "trace-0",
+    "ingress_active": true,
+    "worker_active": true,
+    "source_contact": false,
+    "attack_control": false,
+    "replacement": false,
+    "signature_ok": true,
+    "authorization_ok": true,
+    "trace_integrity": true,
+    "health_ok": true,
+    "old_lease_fenced": true,
+    "blade_can_authorize_release": false
+  },
+  "cases": [
+    {
+      "id": "pass-forward",
+      "patch": {
+        "mode": "D",
+        "pressure": 40
+      },
+      "expected": "PASS"
+    },
+    {
+      "id": "pass-reverse",
+      "patch": {
+        "mode": "R",
+        "pressure": 30,
+        "trace_parent": "trace-0"
+      },
+      "expected": "PASS"
+    },
+    {
+      "id": "pass-neutral",
+      "patch": {
+        "mode": "N",
+        "pressure": 88,
+        "ingress_active": false
+      },
+      "expected": "PASS"
+    },
+    {
+      "id": "pass-park",
+      "patch": {
+        "mode": "P",
+        "pressure": 98,
+        "ingress_active": false,
+        "worker_active": false
+      },
+      "expected": "PASS"
+    },
+    {
+      "id": "pass-replacement",
+      "patch": {
+        "replacement": true,
+        "signature_ok": true,
+        "authorization_ok": true,
+        "trace_integrity": true,
+        "health_ok": true,
+        "old_lease_fenced": true
+      },
+      "expected": "PASS"
+    },
+    {
+      "id": "fail-attack-control",
+      "patch": {
+        "attack_control": true
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-high-pressure-forward",
+      "patch": {
+        "pressure": 89,
+        "mode": "D"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-critical-pressure-neutral",
+      "patch": {
+        "pressure": 96,
+        "mode": "N"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-unauthorized-replace",
+      "patch": {
+        "replacement": true,
+        "authorization_ok": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-signature",
+      "patch": {
+        "replacement": true,
+        "signature_ok": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-trace-discontinuity",
+      "patch": {
+        "trace_integrity": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-old-lease-active",
+      "patch": {
+        "replacement": true,
+        "old_lease_fenced": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-recovery-unhealthy",
+      "patch": {
+        "replacement": true,
+        "health_ok": false
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-neutral-ingress",
+      "patch": {
+        "mode": "N",
+        "ingress_active": true
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-park-worker",
+      "patch": {
+        "mode": "P",
+        "worker_active": true
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-reverse-without-parent",
+      "patch": {
+        "mode": "R",
+        "trace_parent": null
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-unsafe-authority",
+      "patch": {
+        "blade_can_authorize_release": true
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-no-origin",
+      "patch": {
+        "origin_id": ""
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-trace-substitution",
+      "patch": {
+        "linked_trace_id": "trace-X"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-source-contact-on-reverse",
+      "patch": {
+        "mode": "R",
+        "source_contact": true,
+        "trace_parent": "trace-0"
+      },
+      "expected": "FAIL"
+    }
+  ]
+}
