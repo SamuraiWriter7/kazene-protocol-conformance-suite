@@ -1,0 +1,116 @@
+{
+  "version": "0.2.0",
+  "defaults": {
+    "event": {
+      "trace_id": "trace-1",
+      "authorization_id": "auth-1",
+      "authority_envelope_id": "env-1",
+      "mode": "D"
+    },
+    "safety_authority": {
+      "authority_envelope_id": "env-1",
+      "trace_reference": "trace-1"
+    },
+    "safety_recovery": {
+      "recovery_receipt_id": "rec-1",
+      "trace_reference": "trace-1",
+      "final_state": "REAUTHORIZED"
+    },
+    "action_authorization": {
+      "authorization_id": "auth-1",
+      "decision": "authorized",
+      "context_bindings": {
+        "trace_reference": "trace-1"
+      },
+      "authorized_by": {
+        "actor_id": "reviewer-1"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "pass-active",
+      "patch": {},
+      "expected": "PASS"
+    },
+    {
+      "id": "pass-neutral-restricted",
+      "patch": {
+        "event.mode": "N",
+        "safety_recovery.final_state": "RESTRICTED",
+        "action_authorization.decision": "deferred"
+      },
+      "expected": "PASS"
+    },
+    {
+      "id": "fail-action-trace",
+      "patch": {
+        "action_authorization.context_bindings.trace_reference": "trace-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-recovery-trace",
+      "patch": {
+        "safety_recovery.trace_reference": "trace-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-envelope-trace",
+      "patch": {
+        "safety_authority.trace_reference": "trace-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-authorization-id",
+      "patch": {
+        "action_authorization.authorization_id": "auth-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-envelope-id",
+      "patch": {
+        "safety_authority.authority_envelope_id": "env-2"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-no-authorization",
+      "patch": {
+        "action_authorization.decision": "denied"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-active-restricted",
+      "patch": {
+        "safety_recovery.final_state": "RESTRICTED"
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-missing-trace",
+      "patch": {
+        "event.trace_id": ""
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-missing-reviewer",
+      "patch": {
+        "action_authorization.authorized_by.actor_id": ""
+      },
+      "expected": "FAIL"
+    },
+    {
+      "id": "fail-null-action-trace",
+      "patch": {
+        "action_authorization.context_bindings.trace_reference": null
+      },
+      "expected": "FAIL"
+    }
+  ]
+}
